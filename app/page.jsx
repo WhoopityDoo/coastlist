@@ -1,207 +1,63 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
-const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGYktHRAD/AP8A/6C9p5MAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfqAwIAKwd+tkjVAACAAElEQVR42nT9d7wt2VEfin9rde8czj7xnpvvRI00kkYBhCwsLIEIT5LB5Ghw4CGC/cN+2M82GPuBfzb2w8ZgzLPAxsYGgxAiWggBQkJCSAJFRmFGE+7cuenksHPo7lXvj1XVq/YZvcvnojsn9O5evVbVt6q+9S0a93efBDAHcA7ACMAFAAMAMwBNABUA+wCqCH9S+foxgJ58fw6gkO8dAKgBWJGvtQAsADCAMYBV+ZyKXHMmP+MAHAKoy9fGci8Nub6X62Ty/QzAttyHk3uryu+lcq2qXK8DgMHogXAAYALgKoBdgCoAL+R+KwBOAJwCuMjMIyLyYBwDeCEIj8uzXwZwJPdWl98bMWNMBCfP3zDPeSrPuA/gkjxHC8CCGUwEyNcazJwR0QxAH8AagLY8x0ie80TWsifPnsp3NQAfMWNMBCfP3zDPeSrPuA/gkjxHC8CCGUwE";
+/*
+╔══════════════════════════════════════════════════════════════╗
+║  COASTLIST.COM — Complete Application with Admin Panel       ║
+║                                                              ║
+║  HOW IT WORKS:                                               ║
+║  1. Visit your site normally = public property listings      ║
+║  2. Add ?admin=true to URL = admin panel to add properties   ║
+║  3. Properties are stored in localStorage (persists in       ║
+║     browser) + can be exported/imported as JSON              ║
+║  4. For production: replace localStorage with Supabase       ║
+║     (free) when ready to scale                               ║
+╚══════════════════════════════════════════════════════════════╝
+*/
 
-// ─── Color palette ───
-const COLORS = {
-  navy: "#1B2B4B",
-  navyLight: "#2A3F6B",
-  sand: "#F5EFE6",
-  sandDark: "#E8DFD0",
-  sandLight: "#FAF7F2",
-  ocean: "#2E6B8A",
-  oceanLight: "#4A9CB8",
-  oceanPale: "#E8F4F8",
-  seafoam: "#7CC5B8",
-  coral: "#E87461",
-  coralLight: "#F09080",
-  gold: "#D4A853",
-  white: "#FFFFFF",
-  gray100: "#F8F9FA",
-  gray200: "#E9ECEF",
-  gray300: "#DEE2E6",
-  gray400: "#CED4DA",
-  gray500: "#ADB5BD",
-  gray600: "#6C757D",
-  gray700: "#495057",
-  gray800: "#343A40",
-  gray900: "#212529",
+// ─── Design Tokens ───
+const C = {
+  navy: "#1B2B4B", navyLight: "#2A3F6B", navyDark: "#111D33",
+  sand: "#F5EFE6", sandDark: "#E8DFD0", sandLight: "#FAF7F2",
+  ocean: "#2E6B8A", oceanLight: "#4A9CB8", oceanPale: "#E8F4F8",
+  seafoam: "#7CC5B8", coral: "#E87461", coralLight: "#F09080",
+  gold: "#D4A853", white: "#FFFFFF",
+  g100: "#F8F9FA", g200: "#E9ECEF", g300: "#DEE2E6",
+  g400: "#CED4DA", g500: "#ADB5BD", g600: "#6C757D",
+  g700: "#495057", g800: "#343A40", g900: "#212529",
+  green: "#2D9F6F", greenBg: "#E6F7EF",
+  redBg: "#FEF0EE", yellowBg: "#FFF8E7",
 };
 
-// ─── Mock property data ───
-const STATES = ["Florida", "California", "North Carolina", "South Carolina", "Massachusetts", "Maine", "Oregon", "Washington", "Hawaii", "Texas", "New Jersey", "Connecticut", "Virginia", "Maryland"];
+const STATES = ["Florida","California","North Carolina","South Carolina","Massachusetts","Maine","Oregon","Washington","Hawaii","Texas","New Jersey","Connecticut","Virginia","Maryland","Georgia","New York","Rhode Island","New Hampshire","Delaware","Louisiana","Mississippi","Alabama"];
 
 const COUNTIES_BY_STATE = {
-  "Florida": ["Miami-Dade", "Palm Beach", "Monroe", "Collier", "Sarasota", "Pinellas", "Volusia", "St. Johns"],
-  "California": ["Los Angeles", "San Diego", "Orange", "Santa Barbara", "Monterey", "Marin", "San Francisco", "Mendocino"],
-  "North Carolina": ["New Hanover", "Dare", "Carteret", "Brunswick", "Currituck", "Onslow"],
-  "South Carolina": ["Charleston", "Beaufort", "Horry", "Georgetown", "Colleton"],
-  "Massachusetts": ["Barnstable", "Nantucket", "Dukes", "Plymouth", "Essex"],
-  "Maine": ["Cumberland", "York", "Hancock", "Lincoln", "Knox"],
-  "Oregon": ["Clatsop", "Lincoln", "Tillamook", "Coos", "Curry"],
-  "Washington": ["San Juan", "Island", "Whatcom", "Clallam", "Pacific"],
-  "Hawaii": ["Honolulu", "Maui", "Hawaii", "Kauai"],
-  "Texas": ["Galveston", "Cameron", "Nueces", "Aransas", "Brazoria"],
-  "New Jersey": ["Cape May", "Ocean", "Monmouth", "Atlantic", "Burlington"],
-  "Connecticut": ["Fairfield", "New London", "Middlesex", "New Haven"],
-  "Virginia": ["Virginia Beach", "Accomack", "Northampton", "Lancaster", "Mathews"],
-  "Maryland": ["Worcester", "Talbot", "Dorchester", "Somerset", "Anne Arundel"],
+  "Florida":["Miami-Dade","Palm Beach","Monroe","Collier","Sarasota","Pinellas","Volusia","St. Johns","Brevard","Lee","Martin","Indian River","Nassau","Duval","Bay","Okaloosa","Walton","Santa Rosa","Escambia"],
+  "California":["Los Angeles","San Diego","Orange","Santa Barbara","Monterey","Marin","San Francisco","Mendocino","Sonoma","San Mateo","Santa Cruz","Ventura","Humboldt"],
+  "North Carolina":["New Hanover","Dare","Carteret","Brunswick","Currituck","Onslow","Pender","Beaufort","Hyde"],
+  "South Carolina":["Charleston","Beaufort","Horry","Georgetown","Colleton","Jasper","Berkeley"],
+  "Massachusetts":["Barnstable","Nantucket","Dukes","Plymouth","Essex","Suffolk","Bristol","Norfolk"],
+  "Maine":["Cumberland","York","Hancock","Lincoln","Knox","Waldo","Sagadahoc","Washington"],
+  "Oregon":["Clatsop","Lincoln","Tillamook","Coos","Curry","Lane","Douglas"],
+  "Washington":["San Juan","Island","Whatcom","Clallam","Pacific","Grays Harbor","Jefferson","Kitsap"],
+  "Hawaii":["Honolulu","Maui","Hawaii","Kauai"],
+  "Texas":["Galveston","Cameron","Nueces","Aransas","Brazoria","Matagorda","San Patricio","Kleberg","Willacy"],
+  "New Jersey":["Cape May","Ocean","Monmouth","Atlantic","Burlington","Bergen","Hudson"],
+  "Connecticut":["Fairfield","New London","Middlesex","New Haven"],
+  "Virginia":["Virginia Beach","Accomack","Northampton","Lancaster","Mathews","Gloucester"],
+  "Maryland":["Worcester","Talbot","Dorchester","Somerset","Anne Arundel","Calvert","St. Marys","Queen Annes"],
+  "Georgia":["Chatham","Glynn","Camden","McIntosh","Liberty","Bryan"],
+  "New York":["Suffolk","Nassau","Westchester","Queens","Kings","Richmond","Rockland"],
+  "Rhode Island":["Washington","Newport","Bristol","Kent"],
+  "New Hampshire":["Rockingham","Strafford"],
+  "Delaware":["Sussex","Kent"],
+  "Louisiana":["Orleans","Jefferson","St. Tammany","Terrebonne","Lafourche","Plaquemines","Cameron"],
+  "Mississippi":["Harrison","Jackson","Hancock"],
+  "Alabama":["Baldwin","Mobile"],
 };
 
-const WATER_TYPES = ["Ocean", "River", "Lake", "Pond"];
+const WATER_TYPES = ["Ocean","River","Lake","Pond"];
 
-const PROPERTY_IMAGES = [
-  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1602343168117-bb8ffe3e2e9f?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=600&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=600&h=400&fit=crop",
-];
-
-const STREET_NAMES = ["Oceanview Dr", "Harbor Ln", "Seabreeze Way", "Coastal Blvd", "Shoreline Rd", "Bayfront Ave", "Tidewater Ct", "Marina Dr", "Driftwood Ln", "Pelican Way", "Sandpiper Rd", "Lighthouse Ln", "Seaside Terrace", "Coral Reef Dr", "Anchor Point Rd", "Sunset Cove Ln", "Dolphin Bay Dr", "Starfish Way", "Neptune Ct", "Wave Crest Blvd"];
-
-const PROPERTY_DESCRIPTIONS = [
-  "Stunning waterfront estate with panoramic views and private dock access.",
-  "Luxurious coastal retreat featuring floor-to-ceiling windows overlooking the water.",
-  "Elegant waterfront home with resort-style pool and direct water access.",
-  "Contemporary coastal masterpiece with open floor plan and breathtaking vistas.",
-  "Charming waterfront cottage with updated interiors and peaceful surroundings.",
-  "Magnificent estate on pristine waterfront with expansive outdoor living areas.",
-  "Beautifully renovated home with wrap-around deck and unobstructed water views.",
-  "Exclusive waterfront property with private beach, boathouse, and deep water dock.",
-];
-
-function generateProperties(count = 60) {
-  const properties = [];
-  const stateCoords = {
-    "Florida": { lat: [25.5, 30.5], lng: [-80.5, -87.5] },
-    "California": { lat: [32.5, 38.5], lng: [-117.5, -122.5] },
-    "North Carolina": { lat: [33.8, 36.5], lng: [-75.5, -78.5] },
-    "South Carolina": { lat: [32.0, 34.5], lng: [-78.5, -81.0] },
-    "Massachusetts": { lat: [41.2, 42.8], lng: [-69.9, -71.5] },
-    "Maine": { lat: [43.0, 47.0], lng: [-66.9, -70.5] },
-    "Oregon": { lat: [42.0, 46.0], lng: [-123.5, -124.5] },
-    "Washington": { lat: [46.0, 49.0], lng: [-122.5, -124.5] },
-    "Hawaii": { lat: [19.0, 22.0], lng: [-154.5, -160.0] },
-    "Texas": { lat: [26.0, 30.0], lng: [-94.0, -97.5] },
-    "New Jersey": { lat: [39.0, 41.0], lng: [-74.0, -75.5] },
-    "Connecticut": { lat: [41.0, 42.0], lng: [-72.0, -73.5] },
-    "Virginia": { lat: [36.5, 39.0], lng: [-75.5, -77.5] },
-    "Maryland": { lat: [38.0, 39.5], lng: [-75.0, -77.0] },
-  };
-
-  for (let i = 0; i < count; i++) {
-    const state = STATES[Math.floor(Math.random() * STATES.length)];
-    const counties = COUNTIES_BY_STATE[state];
-    const county = counties[Math.floor(Math.random() * counties.length)];
-    const waterType = WATER_TYPES[Math.floor(Math.random() * WATER_TYPES.length)];
-    const coords = stateCoords[state];
-    const lat = coords.lat[0] + Math.random() * (coords.lat[1] - coords.lat[0]);
-    const lng = coords.lng[0] + Math.random() * (coords.lng[1] - coords.lng[0]);
-    const price = Math.floor((500000 + Math.random() * 9500000) / 1000) * 1000;
-    const beds = Math.floor(2 + Math.random() * 5);
-    const baths = Math.floor(2 + Math.random() * 4);
-    const sqft = Math.floor(1800 + Math.random() * 6200);
-    const lotAcres = (0.25 + Math.random() * 4.75).toFixed(2);
-    const streetNum = Math.floor(100 + Math.random() * 9900);
-    const streetName = STREET_NAMES[Math.floor(Math.random() * STREET_NAMES.length)];
-
-    properties.push({
-      id: `CL-${String(i + 1001).padStart(5, "0")}`,
-      address: `${streetNum} ${streetName}`,
-      city: county,
-      state,
-      county,
-      price,
-      beds,
-      baths,
-      sqft,
-      lotAcres: parseFloat(lotAcres),
-      waterType,
-      lat,
-      lng,
-      image: PROPERTY_IMAGES[i % PROPERTY_IMAGES.length],
-      description: PROPERTY_DESCRIPTIONS[i % PROPERTY_DESCRIPTIONS.length],
-      daysOnMarket: Math.floor(1 + Math.random() * 90),
-      yearBuilt: Math.floor(1960 + Math.random() * 63),
-      featured: Math.random() > 0.75,
-      waterFrontage: Math.floor(50 + Math.random() * 450),
-    });
-  }
-  return properties;
-}
-
-const ALL_PROPERTIES = generateProperties(60);
-
-// ─── Format helpers ───
-const formatPrice = (p) => {
-  if (p >= 1000000) return `$${(p / 1000000).toFixed(p % 1000000 === 0 ? 0 : 1)}M`;
-  return `$${(p / 1000).toFixed(0)}K`;
-};
-const formatPriceFull = (p) => `$${p.toLocaleString()}`;
-
-// ─── Icons as SVG components ───
-const IconBed = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
-);
-const IconBath = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h16a1 1 0 0 1 1 1v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1z"/><path d="M6 12V5a2 2 0 0 1 2-2h3v2.25"/></svg>
-);
-const IconArea = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>
-);
-const IconWater = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
-);
-const IconMap = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-);
-const IconGrid = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-);
-const IconChevronDown = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-);
-const IconX = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-);
-const IconHeart = ({ filled }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? COLORS.coral : "none"} stroke={filled ? COLORS.coral : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-);
-const IconStar = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill={COLORS.gold} stroke={COLORS.gold} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-);
-const IconPin = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-);
-const IconAnchor = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
-);
-const IconSearch = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-);
-const IconExternalLink = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-);
-const IconCalendar = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-);
-const IconHome = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-);
-const IconRuler = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg>
-);
-
-// ─── Water type badge colors ───
 const WATER_COLORS = {
   Ocean: { bg: "#1B4B7A", text: "#fff" },
   River: { bg: "#2E7D6B", text: "#fff" },
@@ -209,914 +65,617 @@ const WATER_COLORS = {
   Pond: { bg: "#5B8C7A", text: "#fff" },
 };
 
-// ─── Animated wave background ───
-const WaveBackground = () => (
-  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 200, overflow: "hidden", opacity: 0.06, pointerEvents: "none" }}>
-    <svg viewBox="0 0 1440 200" style={{ position: "absolute", bottom: 0, width: "200%", animation: "waveSlide 12s linear infinite" }}>
-      <path d="M0,100 C320,180 440,20 720,100 C1000,180 1120,20 1440,100 C1760,180 1880,20 2160,100 L2160,200 L0,200 Z" fill={COLORS.navy}/>
-    </svg>
-    <svg viewBox="0 0 1440 200" style={{ position: "absolute", bottom: -20, width: "200%", animation: "waveSlide 16s linear infinite reverse" }}>
-      <path d="M0,120 C360,40 540,180 720,120 C900,60 1080,180 1440,120 C1620,60 1800,180 2160,120 L2160,200 L0,200 Z" fill={COLORS.ocean}/>
-    </svg>
-  </div>
-);
+// ─── Starter demo properties (shown until you add real ones) ───
+const DEMO_PROPERTIES = [
+  {
+    id: "DEMO-001", address: "1247 Oceanview Dr", city: "Palm Beach", state: "Florida",
+    county: "Palm Beach", price: 4250000, beds: 5, baths: 4, sqft: 4800, lotAcres: 0.82,
+    waterType: "Ocean", waterFrontage: 180, yearBuilt: 2018, daysOnMarket: 12,
+    description: "Stunning direct oceanfront estate with 180 feet of private beach frontage. Seawall and private dock with deep water access.",
+    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=400&fit=crop",
+    zillowUrl: "https://www.zillow.com/homes/Palm-Beach-FL/", featured: true, isDemo: true,
+  },
+  {
+    id: "DEMO-002", address: "892 Harbor Ln", city: "Beaufort", state: "South Carolina",
+    county: "Beaufort", price: 1850000, beds: 4, baths: 3, sqft: 3200, lotAcres: 1.1,
+    waterType: "River", waterFrontage: 220, yearBuilt: 2005, daysOnMarket: 28,
+    description: "Elegant riverfront home on the Beaufort River with 220 feet of water frontage and private deep water dock.",
+    image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&h=400&fit=crop",
+    zillowUrl: "https://www.zillow.com/homes/Beaufort-SC/", featured: false, isDemo: true,
+  },
+  {
+    id: "DEMO-003", address: "3301 Coastal Blvd", city: "Monterey", state: "California",
+    county: "Monterey", price: 5750000, beds: 5, baths: 5, sqft: 5400, lotAcres: 1.3,
+    waterType: "Ocean", waterFrontage: 95, yearBuilt: 2020, daysOnMarket: 5,
+    description: "Modern masterpiece perched on the bluffs with direct ocean frontage. Private staircase to beach.",
+    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop",
+    zillowUrl: "https://www.zillow.com/homes/Monterey-CA/", featured: true, isDemo: true,
+  },
+  {
+    id: "DEMO-004", address: "78 Pondview Circle", city: "Nantucket", state: "Massachusetts",
+    county: "Nantucket", price: 3200000, beds: 3, baths: 2, sqft: 2100, lotAcres: 0.45,
+    waterType: "Pond", waterFrontage: 120, yearBuilt: 1985, daysOnMarket: 45,
+    description: "Classic Nantucket cottage on Hummock Pond with 120 feet of pond frontage and private dock.",
+    image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600&h=400&fit=crop",
+    zillowUrl: "https://www.zillow.com/homes/Nantucket-MA/", featured: false, isDemo: true,
+  },
+  {
+    id: "DEMO-005", address: "2200 River Bend Rd", city: "Charleston", state: "South Carolina",
+    county: "Charleston", price: 2800000, beds: 5, baths: 4, sqft: 4100, lotAcres: 2.1,
+    waterType: "River", waterFrontage: 340, yearBuilt: 2015, daysOnMarket: 18,
+    description: "Spectacular estate on the Ashley River with 340 feet of river frontage and deep water dock with two boat slips.",
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop",
+    zillowUrl: "https://www.zillow.com/homes/Charleston-SC/", featured: true, isDemo: true,
+  },
+  {
+    id: "DEMO-006", address: "510 Lakeshore Dr", city: "Traverse City", state: "Michigan",
+    county: "Grand Traverse", price: 1250000, beds: 4, baths: 3, sqft: 2600, lotAcres: 0.55,
+    waterType: "Lake", waterFrontage: 100, yearBuilt: 2010, daysOnMarket: 33,
+    description: "Beautifully updated lakefront home with 100 feet of sandy beach frontage on Lake Michigan.",
+    image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&h=400&fit=crop",
+    zillowUrl: "https://www.zillow.com/homes/Traverse-City-MI/", featured: false, isDemo: true,
+  },
+];
 
-// ─── Dropdown component ───
-const Dropdown = ({ label, value, options, onChange, placeholder, icon }) => {
+// ─── Format helpers ───
+const fmtPrice = (p) => `$${p.toLocaleString()}`;
+const fmtPriceShort = (p) => p >= 1e6 ? `$${(p/1e6).toFixed(p%1e6===0?0:1)}M` : `$${(p/1e3).toFixed(0)}K`;
+
+// ─── Simple Icons ───
+const Ic = {
+  bed: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>,
+  bath: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h16a1 1 0 0 1 1 1v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1z"/><path d="M6 12V5a2 2 0 0 1 2-2h3v2.25"/></svg>,
+  area: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>,
+  water: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>,
+  heart: (f) => <svg width="17" height="17" viewBox="0 0 24 24" fill={f?C.coral:"none"} stroke={f?C.coral:"currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
+  star: <svg width="13" height="13" viewBox="0 0 24 24" fill={C.gold} stroke={C.gold} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  anchor: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>,
+  search: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  x: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  ext: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
+  chev: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  pin: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  grid: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
+  map: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>,
+  plus: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  settings: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  download: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  upload: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+};
+
+// ─── Dropdown ───
+function Dropdown({value, options, onChange, placeholder, icon, disabled}) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
-
   return (
-    <div ref={ref} style={{ position: "relative", minWidth: 160 }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
-          background: value ? COLORS.oceanPale : COLORS.white,
-          border: `1.5px solid ${value ? COLORS.oceanLight : COLORS.gray300}`,
-          borderRadius: 10, cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif",
-          color: value ? COLORS.navy : COLORS.gray600, width: "100%",
-          transition: "all 0.2s ease", fontWeight: value ? 600 : 400,
-        }}
-      >
-        {icon && <span style={{ display: "flex", opacity: 0.6 }}>{icon}</span>}
-        <span style={{ flex: 1, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {value || placeholder || label}
-        </span>
-        <span style={{ display: "flex", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-          <IconChevronDown />
-        </span>
+    <div ref={ref} style={{position:"relative",minWidth:150}}>
+      <button disabled={disabled} onClick={()=>setOpen(!open)} style={{
+        display:"flex",alignItems:"center",gap:7,padding:"9px 13px",
+        background:value?C.oceanPale:C.white,border:`1.5px solid ${value?C.oceanLight:C.g300}`,
+        borderRadius:9,cursor:disabled?"not-allowed":"pointer",fontSize:13,fontFamily:"'DM Sans',sans-serif",
+        color:value?C.navy:C.g600,width:"100%",opacity:disabled?0.5:1,fontWeight:value?600:400,
+      }}>
+        {icon&&<span style={{display:"flex",opacity:0.6}}>{icon}</span>}
+        <span style={{flex:1,textAlign:"left",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{value||placeholder}</span>
+        <span style={{display:"flex",transform:open?"rotate(180deg)":"none",transition:"0.2s"}}>{Ic.chev}</span>
       </button>
-      {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 1000,
-          background: COLORS.white, borderRadius: 10, border: `1px solid ${COLORS.gray200}`,
-          boxShadow: "0 12px 40px rgba(0,0,0,0.12)", maxHeight: 260, overflowY: "auto",
-          animation: "fadeSlideDown 0.2s ease",
-        }}>
-          {value && (
-            <div
-              onClick={() => { onChange(""); setOpen(false); }}
-              style={{
-                padding: "10px 14px", cursor: "pointer", fontSize: 13, color: COLORS.coral,
-                borderBottom: `1px solid ${COLORS.gray100}`, fontStyle: "italic",
-              }}
-            >
-              Clear selection
-            </div>
-          )}
-          {options.map((opt) => (
-            <div
-              key={opt}
-              onClick={() => { onChange(opt); setOpen(false); }}
-              style={{
-                padding: "10px 14px", cursor: "pointer", fontSize: 14,
-                background: opt === value ? COLORS.oceanPale : "transparent",
-                color: opt === value ? COLORS.ocean : COLORS.gray800,
-                fontWeight: opt === value ? 600 : 400,
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => { if (opt !== value) e.target.style.background = COLORS.gray100; }}
-              onMouseLeave={(e) => { if (opt !== value) e.target.style.background = "transparent"; }}
-            >
-              {opt}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── Property Card ───
-const PropertyCard = ({ property, onSelect, favorites, toggleFavorite, compact }) => {
-  const isFav = favorites.has(property.id);
-  const wc = WATER_COLORS[property.waterType];
-
-  return (
-    <div
-      onClick={() => onSelect(property)}
-      style={{
-        background: COLORS.white, borderRadius: 14, overflow: "hidden",
-        boxShadow: "0 2px 16px rgba(27,43,75,0.08)",
-        cursor: "pointer", transition: "all 0.3s ease",
-        border: `1px solid ${COLORS.gray200}`,
-        display: "flex", flexDirection: compact ? "row" : "column",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow = "0 12px 32px rgba(27,43,75,0.15)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 2px 16px rgba(27,43,75,0.08)";
-      }}
-    >
-      {/* Image */}
-      <div style={{
-        position: "relative",
-        width: compact ? 200 : "100%",
-        minWidth: compact ? 200 : undefined,
-        height: compact ? "100%" : 200,
-        minHeight: compact ? 140 : undefined,
-        background: COLORS.gray200,
-        overflow: "hidden",
-        flexShrink: 0,
+      {open&&<div style={{
+        position:"absolute",top:"calc(100% + 3px)",left:0,right:0,zIndex:1000,
+        background:C.white,borderRadius:9,border:`1px solid ${C.g200}`,
+        boxShadow:"0 12px 40px rgba(0,0,0,0.12)",maxHeight:240,overflowY:"auto",
       }}>
-        <img
-          src={property.image}
-          alt={property.address}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          loading="lazy"
-        />
-        {/* Water type badge */}
-        <div style={{
-          position: "absolute", top: 10, left: 10,
-          background: wc.bg, color: wc.text, padding: "4px 10px",
-          borderRadius: 6, fontSize: 11, fontWeight: 700,
-          letterSpacing: "0.05em", textTransform: "uppercase",
-          display: "flex", alignItems: "center", gap: 4,
-          backdropFilter: "blur(4px)",
-        }}>
-          <IconWater /> {property.waterType}
-        </div>
-        {/* Favorite */}
-        <button
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(property.id); }}
-          style={{
-            position: "absolute", top: 10, right: 10,
-            background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%",
-            width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", backdropFilter: "blur(4px)", transition: "transform 0.2s",
-          }}
-          onMouseEnter={(e) => e.target.style.transform = "scale(1.1)"}
-          onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
-        >
-          <IconHeart filled={isFav} />
-        </button>
-        {/* Featured */}
-        {property.featured && (
-          <div style={{
-            position: "absolute", bottom: 10, left: 10,
-            background: "rgba(212,168,83,0.95)", color: COLORS.white,
-            padding: "3px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700,
-            display: "flex", alignItems: "center", gap: 3, letterSpacing: "0.05em",
-          }}>
-            <IconStar /> FEATURED
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div style={{ padding: compact ? "12px 14px" : "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: compact ? 4 : 6 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ fontSize: compact ? 18 : 22, fontWeight: 800, color: COLORS.navy, fontFamily: "'Playfair Display', serif" }}>
-            {formatPriceFull(property.price)}
-          </div>
-          <div style={{ fontSize: 10, color: COLORS.gray500, whiteSpace: "nowrap", marginTop: 4 }}>
-            {property.daysOnMarket}d ago
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: compact ? 10 : 14, fontSize: 13, color: COLORS.gray600 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 3 }}><IconBed /> {property.beds}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 3 }}><IconBath /> {property.baths}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 3 }}><IconArea /> {property.sqft.toLocaleString()}</span>
-        </div>
-        <div style={{ fontSize: 13, color: COLORS.gray700, fontWeight: 500 }}>
-          {property.address}
-        </div>
-        <div style={{ fontSize: 12, color: COLORS.gray500 }}>
-          {property.county}, {property.state}
-        </div>
-        {!compact && (
-          <div style={{
-            marginTop: 4, fontSize: 12, color: COLORS.ocean,
-            display: "flex", alignItems: "center", gap: 4, fontWeight: 500,
-          }}>
-            <IconAnchor /> {property.waterFrontage}ft waterfront
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ─── Property Detail Modal ───
-const PropertyDetail = ({ property, onClose, favorites, toggleFavorite }) => {
-  if (!property) return null;
-  const isFav = favorites.has(property.id);
-  const wc = WATER_COLORS[property.waterType];
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(27,43,75,0.6)",
-        zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 20, backdropFilter: "blur(4px)", animation: "fadeIn 0.25s ease",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: COLORS.white, borderRadius: 18, maxWidth: 720, width: "100%",
-          maxHeight: "90vh", overflow: "auto", position: "relative",
-          boxShadow: "0 24px 80px rgba(27,43,75,0.25)",
-          animation: "modalSlideUp 0.35s ease",
-        }}
-      >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute", top: 14, right: 14, zIndex: 10,
-            background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%",
-            width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          }}
-        >
-          <IconX />
-        </button>
-
-        {/* Image */}
-        <div style={{ height: 340, background: COLORS.gray200, position: "relative", overflow: "hidden" }}>
-          <img src={property.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0,
-            background: "linear-gradient(transparent, rgba(27,43,75,0.7))",
-            padding: "40px 28px 20px",
-          }}>
-            <div style={{ color: COLORS.white, fontSize: 32, fontWeight: 800, fontFamily: "'Playfair Display', serif" }}>
-              {formatPriceFull(property.price)}
-            </div>
-            <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 16, marginTop: 4 }}>
-              {property.address}, {property.county}, {property.state}
-            </div>
-          </div>
-          <div style={{
-            position: "absolute", top: 14, left: 14,
-            background: wc.bg, color: wc.text, padding: "6px 14px",
-            borderRadius: 8, fontSize: 12, fontWeight: 700,
-            display: "flex", alignItems: "center", gap: 5,
-            letterSpacing: "0.05em", textTransform: "uppercase",
-          }}>
-            <IconWater /> {property.waterType} Front
-          </div>
-        </div>
-
-        {/* Content */}
-        <div style={{ padding: "24px 28px" }}>
-          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 20 }}>
-            {[
-              { icon: <IconBed />, label: "Bedrooms", value: property.beds },
-              { icon: <IconBath />, label: "Bathrooms", value: property.baths },
-              { icon: <IconArea />, label: "Sq Ft", value: property.sqft.toLocaleString() },
-              { icon: <IconRuler />, label: "Lot", value: `${property.lotAcres} acres` },
-              { icon: <IconAnchor />, label: "Waterfront", value: `${property.waterFrontage} ft` },
-              { icon: <IconCalendar />, label: "Year Built", value: property.yearBuilt },
-              { icon: <IconHome />, label: "Days Listed", value: property.daysOnMarket },
-            ].map((item, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "8px 14px", background: COLORS.gray100, borderRadius: 8,
-                fontSize: 13, color: COLORS.gray700,
-              }}>
-                <span style={{ color: COLORS.ocean }}>{item.icon}</span>
-                <span style={{ fontWeight: 600 }}>{item.value}</span>
-                <span style={{ color: COLORS.gray500, fontSize: 11 }}>{item.label}</span>
-              </div>
-            ))}
-          </div>
-
-          <p style={{ fontSize: 15, lineHeight: 1.7, color: COLORS.gray700, marginBottom: 24 }}>
-            {property.description}
-          </p>
-
-          <div style={{ display: "flex", gap: 12 }}>
-            <a
-              href={`https://www.zillow.com/homes/${encodeURIComponent(property.address + " " + property.county + " " + property.state)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                padding: "14px 20px", background: COLORS.navy, color: COLORS.white,
-                borderRadius: 10, fontSize: 15, fontWeight: 600, textDecoration: "none",
-                transition: "background 0.2s", cursor: "pointer",
-              }}
-              onMouseEnter={(e) => e.target.style.background = COLORS.navyLight}
-              onMouseLeave={(e) => e.target.style.background = COLORS.navy}
-            >
-              View on Zillow <IconExternalLink />
-            </a>
-            <button
-              onClick={() => toggleFavorite(property.id)}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                padding: "14px 20px",
-                background: isFav ? "#FEF0EE" : COLORS.gray100,
-                border: `1.5px solid ${isFav ? COLORS.coral : COLORS.gray300}`,
-                borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer",
-                color: isFav ? COLORS.coral : COLORS.gray700,
-                transition: "all 0.2s",
-              }}
-            >
-              <IconHeart filled={isFav} />
-              {isFav ? "Saved" : "Save"}
-            </button>
-          </div>
-
-          <div style={{
-            marginTop: 20, padding: "12px 16px", background: COLORS.oceanPale, borderRadius: 10,
-            fontSize: 12, color: COLORS.ocean, display: "flex", alignItems: "center", gap: 6,
-          }}>
-            <IconPin /> Property ID: {property.id} • {property.county} County, {property.state}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── Simple Map Component ───
-const MapView = ({ properties, onSelect, selectedId }) => {
-  const mapRef = useRef(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [hoveredId, setHoveredId] = useState(null);
-  const [tooltip, setTooltip] = useState(null);
-
-  // Simple calculation to fit all properties
-  const bounds = useMemo(() => {
-    if (properties.length === 0) return { minLat: 25, maxLat: 48, minLng: -125, maxLng: -67 };
-    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-    properties.forEach(p => {
-      minLat = Math.min(minLat, p.lat);
-      maxLat = Math.max(maxLat, p.lat);
-      minLng = Math.min(minLng, p.lng);
-      maxLng = Math.max(maxLng, p.lng);
-    });
-    const padLat = (maxLat - minLat) * 0.15 || 2;
-    const padLng = (maxLng - minLng) * 0.15 || 2;
-    return { minLat: minLat - padLat, maxLat: maxLat + padLat, minLng: minLng - padLng, maxLng: maxLng + padLng };
-  }, [properties]);
-
-  const projectPoint = useCallback((lat, lng) => {
-    if (!mapRef.current) return { x: 0, y: 0 };
-    const rect = mapRef.current.getBoundingClientRect();
-    const x = ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * rect.width;
-    const y = ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * rect.height;
-    return { x, y };
-  }, [bounds]);
-
-  useEffect(() => { setMapReady(true); }, []);
-
-  return (
-    <div
-      ref={mapRef}
-      style={{
-        width: "100%", height: "100%", position: "relative",
-        background: `linear-gradient(170deg, #C8E6F0 0%, #A3C9D9 30%, #8AB4C8 60%, #D4CFC0 100%)`,
-        borderRadius: 14, overflow: "hidden",
-      }}
-    >
-      {/* Map grid lines */}
-      <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.08 }}>
-        {Array.from({length: 10}).map((_, i) => (
-          <g key={i}>
-            <line x1={`${(i+1)*10}%`} y1="0" x2={`${(i+1)*10}%`} y2="100%" stroke={COLORS.navy} strokeWidth="0.5"/>
-            <line x1="0" y1={`${(i+1)*10}%`} x2="100%" y2={`${(i+1)*10}%`} stroke={COLORS.navy} strokeWidth="0.5"/>
-          </g>
-        ))}
-      </svg>
-
-      {/* Decorative "land" shapes */}
-      <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.15 }}>
-        <ellipse cx="30%" cy="40%" rx="25%" ry="30%" fill="#9AB89C"/>
-        <ellipse cx="70%" cy="55%" rx="20%" ry="25%" fill="#9AB89C"/>
-        <ellipse cx="50%" cy="75%" rx="30%" ry="20%" fill="#9AB89C"/>
-      </svg>
-
-      {/* Property markers */}
-      {mapReady && properties.map((p) => {
-        const { x, y } = projectPoint(p.lat, p.lng);
-        const isSelected = p.id === selectedId;
-        const isHovered = p.id === hoveredId;
-        const wc = WATER_COLORS[p.waterType];
-        return (
-          <div
-            key={p.id}
-            onClick={(e) => { e.stopPropagation(); onSelect(p); }}
-            onMouseEnter={(e) => {
-              setHoveredId(p.id);
-              setTooltip({ x, y, property: p });
-            }}
-            onMouseLeave={() => {
-              setHoveredId(null);
-              setTooltip(null);
-            }}
-            style={{
-              position: "absolute",
-              left: x - (isSelected || isHovered ? 32 : 24),
-              top: y - (isSelected || isHovered ? 14 : 10),
-              transform: isSelected || isHovered ? "scale(1.15)" : "scale(1)",
-              transition: "all 0.2s ease",
-              zIndex: isSelected || isHovered ? 100 : 10,
-              cursor: "pointer",
-            }}
-          >
-            <div style={{
-              background: isSelected ? COLORS.coral : wc.bg,
-              color: "#fff",
-              padding: "4px 10px",
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-              boxShadow: isSelected || isHovered
-                ? "0 4px 16px rgba(27,43,75,0.35)"
-                : "0 2px 8px rgba(27,43,75,0.2)",
-              border: `2px solid ${isSelected ? COLORS.coral : "rgba(255,255,255,0.5)"}`,
-              fontFamily: "'DM Sans', sans-serif",
-            }}>
-              {formatPrice(p.price)}
-            </div>
-            {/* Pin arrow */}
-            <div style={{
-              width: 0, height: 0, margin: "0 auto",
-              borderLeft: "6px solid transparent",
-              borderRight: "6px solid transparent",
-              borderTop: `6px solid ${isSelected ? COLORS.coral : wc.bg}`,
-            }}/>
-          </div>
-        );
-      })}
-
-      {/* Hover tooltip */}
-      {tooltip && (
-        <div style={{
-          position: "absolute",
-          left: Math.min(tooltip.x, (mapRef.current?.clientWidth || 400) - 240),
-          top: tooltip.y - 120,
-          background: COLORS.white,
-          borderRadius: 10,
-          padding: 10,
-          boxShadow: "0 8px 32px rgba(27,43,75,0.2)",
-          width: 220,
-          zIndex: 200,
-          pointerEvents: "none",
-          animation: "fadeIn 0.15s ease",
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.navy }}>{formatPriceFull(tooltip.property.price)}</div>
-          <div style={{ fontSize: 12, color: COLORS.gray600, marginTop: 2 }}>{tooltip.property.address}</div>
-          <div style={{ display: "flex", gap: 10, marginTop: 6, fontSize: 11, color: COLORS.gray500 }}>
-            <span>{tooltip.property.beds} bd</span>
-            <span>{tooltip.property.baths} ba</span>
-            <span>{tooltip.property.sqft.toLocaleString()} sqft</span>
-          </div>
-          <div style={{
-            marginTop: 6, fontSize: 10, color: WATER_COLORS[tooltip.property.waterType].bg,
-            fontWeight: 600, textTransform: "uppercase",
-          }}>
-            {tooltip.property.waterType} • {tooltip.property.waterFrontage}ft frontage
-          </div>
-        </div>
-      )}
-
-      {/* Legend */}
-      <div style={{
-        position: "absolute", bottom: 14, left: 14,
-        background: "rgba(255,255,255,0.92)", borderRadius: 10, padding: "10px 14px",
-        backdropFilter: "blur(8px)", boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-      }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.gray600, marginBottom: 6, letterSpacing: "0.05em" }}>
-          WATER TYPE
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {WATER_TYPES.map((wt) => (
-            <div key={wt} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
-              <div style={{ width: 10, height: 10, borderRadius: 3, background: WATER_COLORS[wt].bg }}/>
-              <span style={{ color: COLORS.gray600 }}>{wt}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Property count */}
-      <div style={{
-        position: "absolute", top: 14, right: 14,
-        background: "rgba(255,255,255,0.92)", borderRadius: 8, padding: "8px 12px",
-        backdropFilter: "blur(8px)", fontSize: 12, fontWeight: 600, color: COLORS.navy,
-      }}>
-        {properties.length} properties
-      </div>
-    </div>
-  );
-};
-
-// ─── Hero Section ───
-const Hero = ({ onExplore }) => (
-  <div style={{
-    position: "relative",
-    background: `linear-gradient(145deg, ${COLORS.navy} 0%, #1E3A5F 40%, ${COLORS.ocean} 100%)`,
-    padding: "80px 40px 100px",
-    overflow: "hidden",
-    textAlign: "center",
-  }}>
-    <WaveBackground />
-    {/* Floating decorative elements */}
-    <div style={{ position: "absolute", top: 40, left: "10%", width: 6, height: 6, borderRadius: "50%", background: COLORS.seafoam, opacity: 0.4, animation: "float 6s ease-in-out infinite" }}/>
-    <div style={{ position: "absolute", top: 80, right: "15%", width: 4, height: 4, borderRadius: "50%", background: COLORS.gold, opacity: 0.4, animation: "float 8s ease-in-out infinite 1s" }}/>
-    <div style={{ position: "absolute", top: 120, left: "25%", width: 8, height: 8, borderRadius: "50%", background: COLORS.oceanLight, opacity: 0.3, animation: "float 7s ease-in-out infinite 2s" }}/>
-
-    <div style={{ position: "relative", zIndex: 1, maxWidth: 700, margin: "0 auto" }}>
-      <div style={{
-        fontSize: 14, letterSpacing: "0.25em", color: COLORS.seafoam, fontWeight: 600,
-        textTransform: "uppercase", marginBottom: 16, fontFamily: "'DM Sans', sans-serif",
-      }}>
-        Waterfront Living, Curated
-      </div>
-      <h1 style={{
-        fontSize: "clamp(36px, 5vw, 56px)",
-        fontWeight: 800, color: COLORS.white, lineHeight: 1.1,
-        fontFamily: "'Playfair Display', serif", margin: "0 0 20px",
-      }}>
-        Discover Your <span style={{ color: COLORS.seafoam }}>Waterfront</span> Dream Home
-      </h1>
-      <p style={{
-        fontSize: "clamp(15px, 2vw, 18px)", color: "rgba(255,255,255,0.7)",
-        lineHeight: 1.6, maxWidth: 520, margin: "0 auto 36px",
-        fontFamily: "'DM Sans', sans-serif",
-      }}>
-        Every property in our collection borders a river, lake, ocean, or waterway.
-        Where the water meets your front door.
-      </p>
-      <button
-        onClick={onExplore}
-        style={{
-          padding: "16px 40px", background: COLORS.seafoam, color: COLORS.navy,
-          border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700,
-          cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
-          display: "inline-flex", alignItems: "center", gap: 8,
-          transition: "all 0.3s ease", boxShadow: "0 4px 20px rgba(124,197,184,0.4)",
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = "translateY(-2px)";
-          e.target.style.boxShadow = "0 8px 30px rgba(124,197,184,0.5)";
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = "translateY(0)";
-          e.target.style.boxShadow = "0 4px 20px rgba(124,197,184,0.4)";
-        }}
-      >
-        <IconSearch /> Explore Properties
-      </button>
-    </div>
-  </div>
-);
-
-// ─── Main App ───
-export default function CoastList() {
-  const [view, setView] = useState("grid");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedCounty, setSelectedCounty] = useState("");
-  const [selectedWater, setSelectedWater] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedProperty, setSelectedProperty] = useState(null);
-  const [favorites, setFavorites] = useState(new Set());
-  const [showHero, setShowHero] = useState(true);
-  const listRef = useRef(null);
-
-  const counties = selectedState ? COUNTIES_BY_STATE[selectedState] || [] : [];
-
-  const filteredProperties = useMemo(() => {
-    return ALL_PROPERTIES.filter((p) => {
-      if (selectedState && p.state !== selectedState) return false;
-      if (selectedCounty && p.county !== selectedCounty) return false;
-      if (selectedWater && p.waterType !== selectedWater) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        return (
-          p.address.toLowerCase().includes(q) ||
-          p.city.toLowerCase().includes(q) ||
-          p.state.toLowerCase().includes(q) ||
-          p.county.toLowerCase().includes(q) ||
-          p.id.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [selectedState, selectedCounty, selectedWater, searchQuery]);
-
-  const toggleFavorite = useCallback((id) => {
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }, []);
-
-  const scrollToList = () => {
-    setShowHero(false);
-    setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-  };
-
-  useEffect(() => {
-    if (selectedState === "" || !COUNTIES_BY_STATE[selectedState]?.includes(selectedCounty)) {
-      setSelectedCounty("");
-    }
-  }, [selectedState]);
-
-  const activeFilters = [selectedState, selectedCounty, selectedWater].filter(Boolean).length;
-
-  return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: COLORS.sandLight, minHeight: "100vh" }}>
-      {/* Google Fonts */}
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-
-      {/* Global keyframes */}
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-8px) } to { opacity: 1; transform: translateY(0) } }
-        @keyframes modalSlideUp { from { opacity: 0; transform: translateY(30px) } to { opacity: 1; transform: translateY(0) } }
-        @keyframes waveSlide { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-        @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-15px) } }
-        @keyframes pulse { 0%,100% { opacity: 0.6 } 50% { opacity: 1 } }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: ${COLORS.gray300}; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: ${COLORS.gray400}; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        a { text-decoration: none; }
-      `}</style>
-
-      {/* ─── Header ─── */}
-      <header style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "12px 28px",
-        background: showHero ? "transparent" : COLORS.white,
-        borderBottom: showHero ? "none" : `1px solid ${COLORS.gray200}`,
-        position: showHero ? "absolute" : "sticky",
-        top: 0, left: 0, right: 0, zIndex: 1000,
-        transition: "all 0.3s ease",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setShowHero(true)}>
-          <img src={LOGO_SRC} alt="CoastList" style={{ height: 44, objectFit: "contain" }} />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {favorites.size > 0 && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 4, fontSize: 13,
-              color: showHero ? COLORS.white : COLORS.coral, fontWeight: 600,
-            }}>
-              <IconHeart filled /> {favorites.size}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* ─── Hero ─── */}
-      {showHero && <Hero onExplore={scrollToList} />}
-
-      {/* ─── Main Content ─── */}
-      <div ref={listRef} style={{ maxWidth: 1440, margin: "0 auto", padding: showHero ? "0 24px 40px" : "0 24px 40px" }}>
-        {/* Filter Bar */}
-        <div style={{
-          position: "sticky", top: showHero ? 0 : 69, zIndex: 500,
-          background: "rgba(245,239,230,0.95)", backdropFilter: "blur(12px)",
-          padding: "16px 0", marginBottom: 20,
-          borderBottom: `1px solid ${COLORS.sandDark}`,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            {/* Search */}
-            <div style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
-              background: COLORS.white, border: `1.5px solid ${COLORS.gray300}`,
-              borderRadius: 10, flex: "1 1 200px", maxWidth: 280,
-            }}>
-              <IconSearch />
-              <input
-                type="text"
-                placeholder="Search address, city, ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  border: "none", outline: "none", flex: 1, fontSize: 14,
-                  fontFamily: "'DM Sans', sans-serif", background: "transparent",
-                  color: COLORS.gray800,
-                }}
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", color: COLORS.gray500 }}>
-                  <IconX />
-                </button>
-              )}
-            </div>
-
-            {/* Tier 1 Filters */}
-            <Dropdown
-              label="State" value={selectedState} options={STATES}
-              onChange={setSelectedState} placeholder="All States"
-              icon={<IconPin />}
-            />
-            <Dropdown
-              label="County" value={selectedCounty}
-              options={counties}
-              onChange={setSelectedCounty}
-              placeholder={selectedState ? "All Counties" : "Select state first"}
-              icon={<IconMap />}
-            />
-
-            {/* Divider */}
-            <div style={{ width: 1, height: 28, background: COLORS.gray300, flexShrink: 0 }}/>
-
-            {/* Tier 2 Filter */}
-            <Dropdown
-              label="Water Type" value={selectedWater} options={WATER_TYPES}
-              onChange={setSelectedWater} placeholder="All Water Types"
-              icon={<IconWater />}
-            />
-
-            <div style={{ flex: 1 }}/>
-
-            {/* Active filter count */}
-            {activeFilters > 0 && (
-              <button
-                onClick={() => { setSelectedState(""); setSelectedCounty(""); setSelectedWater(""); setSearchQuery(""); }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4, padding: "8px 14px",
-                  background: COLORS.coralLight + "22", border: `1px solid ${COLORS.coral}33`,
-                  borderRadius: 8, fontSize: 12, fontWeight: 600, color: COLORS.coral,
-                  cursor: "pointer",
-                }}
-              >
-                Clear {activeFilters} filter{activeFilters > 1 ? "s" : ""} <IconX />
-              </button>
-            )}
-
-            {/* View toggle */}
-            <div style={{
-              display: "flex", background: COLORS.white, borderRadius: 10,
-              border: `1.5px solid ${COLORS.gray300}`, overflow: "hidden",
-            }}>
-              {[
-                { key: "grid", icon: <IconGrid />, label: "Grid" },
-                { key: "map", icon: <IconMap />, label: "Map" },
-              ].map((v) => (
-                <button
-                  key={v.key}
-                  onClick={() => setView(v.key)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5, padding: "8px 14px",
-                    border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                    background: view === v.key ? COLORS.navy : "transparent",
-                    color: view === v.key ? COLORS.white : COLORS.gray600,
-                    transition: "all 0.2s",
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}
-                >
-                  {v.icon} {v.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Results count */}
-          <div style={{ marginTop: 10, fontSize: 13, color: COLORS.gray600 }}>
-            <span style={{ fontWeight: 700, color: COLORS.navy }}>{filteredProperties.length}</span> waterfront {filteredProperties.length === 1 ? "property" : "properties"}
-            {selectedState && <span> in <strong>{selectedState}</strong></span>}
-            {selectedCounty && <span> · {selectedCounty} County</span>}
-            {selectedWater && <span> · <span style={{ color: WATER_COLORS[selectedWater].bg, fontWeight: 600 }}>{selectedWater}</span> front</span>}
-          </div>
-        </div>
-
-        {/* Content Area */}
-        {view === "grid" ? (
-          <div>
-            {/* Featured row */}
-            {filteredProperties.some(p => p.featured) && !searchQuery && !selectedState && (
-              <div style={{ marginBottom: 32 }}>
-                <h2 style={{
-                  fontSize: 22, fontWeight: 700, color: COLORS.navy, marginBottom: 16,
-                  fontFamily: "'Playfair Display', serif",
-                  display: "flex", alignItems: "center", gap: 8,
-                }}>
-                  <IconStar /> Featured Waterfront Homes
-                </h2>
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-                  gap: 20,
-                }}>
-                  {filteredProperties.filter(p => p.featured).slice(0, 4).map((p) => (
-                    <PropertyCard
-                      key={p.id} property={p} onSelect={setSelectedProperty}
-                      favorites={favorites} toggleFavorite={toggleFavorite}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* All properties grid */}
-            <h2 style={{
-              fontSize: 22, fontWeight: 700, color: COLORS.navy, marginBottom: 16,
-              fontFamily: "'Playfair Display', serif",
-            }}>
-              All Properties
-            </h2>
-            {filteredProperties.length === 0 ? (
-              <div style={{
-                textAlign: "center", padding: "60px 20px", color: COLORS.gray500,
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🌊</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.gray700, marginBottom: 8 }}>
-                  No properties found
-                </div>
-                <div style={{ fontSize: 14 }}>
-                  Try adjusting your filters to discover more waterfront homes.
-                </div>
-              </div>
-            ) : (
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-                gap: 20,
-              }}>
-                {filteredProperties.map((p) => (
-                  <PropertyCard
-                    key={p.id} property={p} onSelect={setSelectedProperty}
-                    favorites={favorites} toggleFavorite={toggleFavorite}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Map + sidebar view */
-          <div style={{ display: "flex", gap: 20, height: "calc(100vh - 200px)", minHeight: 500 }}>
-            {/* Map */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <MapView
-                properties={filteredProperties}
-                onSelect={setSelectedProperty}
-                selectedId={selectedProperty?.id}
-              />
-            </div>
-            {/* Sidebar list */}
-            <div style={{
-              width: 340, flexShrink: 0, overflowY: "auto",
-              display: "flex", flexDirection: "column", gap: 12,
-              paddingRight: 4,
-            }}>
-              <div style={{
-                fontSize: 13, fontWeight: 600, color: COLORS.gray600,
-                padding: "8px 0", borderBottom: `1px solid ${COLORS.gray200}`, marginBottom: 4,
-              }}>
-                {filteredProperties.length} properties on map
-              </div>
-              {filteredProperties.map((p) => (
-                <PropertyCard
-                  key={p.id} property={p} onSelect={setSelectedProperty}
-                  favorites={favorites} toggleFavorite={toggleFavorite}
-                  compact
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ─── Footer ─── */}
-      <footer style={{
-        background: COLORS.navy, color: "rgba(255,255,255,0.6)", padding: "40px 28px",
-        textAlign: "center", fontSize: 13, lineHeight: 1.8,
-      }}>
-        <img src={LOGO_SRC} alt="CoastList" style={{ height: 40, objectFit: "contain", opacity: 0.7, marginBottom: 16 }} />
-        <div style={{ maxWidth: 500, margin: "0 auto", marginBottom: 20 }}>
-          CoastList curates waterfront properties where property lines border rivers, lakes,
-          oceans, and waterways. Every listing connects you to the water.
-        </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-          © {new Date().getFullYear()} CoastList.com — All rights reserved · Property data sourced from Zillow
-        </div>
-      </footer>
-
-      {/* ─── Property Detail Modal ─── */}
-      {selectedProperty && (
-        <PropertyDetail
-          property={selectedProperty}
-          onClose={() => setSelectedProperty(null)}
-          favorites={favorites}
-          toggleFavorite={toggleFavorite}
-        />
-      )}
+        {value&&<div onClick={()=>{onChange("");setOpen(false);}} style={{
+          padding:"9px 13px",cursor:"pointer",fontSize:12,color:C.coral,borderBottom:`1px solid ${C.g100}`,fontStyle:"italic"
+        }}>Clear</div>}
+        {options.map(o=><div key={o} onClick={()=>{onChange(o);setOpen(false);}} style={{
+          padding:"9px 13px",cursor:"pointer",fontSize:13,
+          background:o===value?C.oceanPale:"transparent",color:o===value?C.ocean:C.g800,
+          fontWeight:o===value?600:400,
+        }} onMouseEnter={e=>{if(o!==value)e.target.style.background=C.g100}}
+           onMouseLeave={e=>{if(o!==value)e.target.style.background="transparent"}}>{o}</div>)}
+      </div>}
     </div>
   );
 }
 
+// ─── Property Card ───
+function Card({p, onSelect, favs, toggleFav}) {
+  const isFav = favs.has(p.id);
+  const wc = WATER_COLORS[p.waterType] || WATER_COLORS.Ocean;
+  return (
+    <div onClick={()=>onSelect(p)} style={{
+      background:C.white,borderRadius:13,overflow:"hidden",
+      boxShadow:"0 2px 14px rgba(27,43,75,0.07)",cursor:"pointer",
+      transition:"all 0.3s",border:`1px solid ${C.g200}`,
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 10px 28px rgba(27,43,75,0.13)"}}
+    onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 2px 14px rgba(27,43,75,0.07)"}}
+    >
+      <div style={{position:"relative",height:190,background:C.g200,overflow:"hidden"}}>
+        <img src={p.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
+        <div style={{position:"absolute",top:9,left:9,background:wc.bg,color:wc.text,padding:"3px 9px",borderRadius:5,fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:3}}>
+          {Ic.water} {p.waterType}
+        </div>
+        <button onClick={e=>{e.stopPropagation();toggleFav(p.id)}} style={{
+          position:"absolute",top:9,right:9,background:"rgba(255,255,255,0.9)",border:"none",borderRadius:"50%",
+          width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"
+        }}>{Ic.heart(isFav)}</button>
+        {p.featured&&<div style={{position:"absolute",bottom:9,left:9,background:"rgba(212,168,83,0.95)",color:C.white,padding:"2px 7px",borderRadius:4,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",gap:3,letterSpacing:"0.05em"}}>{Ic.star} FEATURED</div>}
+        {p.isDemo&&<div style={{position:"absolute",bottom:9,right:9,background:"rgba(27,43,75,0.75)",color:C.white,padding:"2px 7px",borderRadius:4,fontSize:9,fontWeight:600,letterSpacing:"0.04em"}}>DEMO</div>}
+      </div>
+      <div style={{padding:"13px 15px",display:"flex",flexDirection:"column",gap:5}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{fontSize:20,fontWeight:800,color:C.navy,fontFamily:"'Playfair Display',serif"}}>{fmtPrice(p.price)}</div>
+          <div style={{fontSize:10,color:C.g500,marginTop:4}}>{p.daysOnMarket}d</div>
+        </div>
+        <div style={{display:"flex",gap:12,fontSize:12,color:C.g600}}>
+          <span style={{display:"flex",alignItems:"center",gap:3}}>{Ic.bed} {p.beds}</span>
+          <span style={{display:"flex",alignItems:"center",gap:3}}>{Ic.bath} {p.baths}</span>
+          <span style={{display:"flex",alignItems:"center",gap:3}}>{Ic.area} {p.sqft?.toLocaleString()}</span>
+        </div>
+        <div style={{fontSize:13,color:C.g700,fontWeight:500}}>{p.address}</div>
+        <div style={{fontSize:11,color:C.g500}}>{p.county}, {p.state}</div>
+        {p.waterFrontage>0&&<div style={{fontSize:11,color:C.ocean,display:"flex",alignItems:"center",gap:3,fontWeight:500}}>{Ic.anchor} {p.waterFrontage}ft waterfront</div>}
+      </div>
+    </div>
+  );
+}
 
+// ─── Detail Modal ───
+function DetailModal({p, onClose, favs, toggleFav}) {
+  if(!p) return null;
+  const isFav = favs.has(p.id);
+  const wc = WATER_COLORS[p.waterType]||WATER_COLORS.Ocean;
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(27,43,75,0.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(4px)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:16,maxWidth:700,width:"100%",maxHeight:"90vh",overflow:"auto",boxShadow:"0 20px 60px rgba(27,43,75,0.25)"}}>
+        <div style={{height:320,background:C.g200,position:"relative",overflow:"hidden"}}>
+          <img src={p.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"rgba(255,255,255,0.9)",border:"none",borderRadius:"50%",width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>{Ic.x}</button>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(27,43,75,0.7))",padding:"36px 24px 18px"}}>
+            <div style={{color:C.white,fontSize:28,fontWeight:800,fontFamily:"'Playfair Display',serif"}}>{fmtPrice(p.price)}</div>
+            <div style={{color:"rgba(255,255,255,0.9)",fontSize:15,marginTop:3}}>{p.address}, {p.county}, {p.state}</div>
+          </div>
+          <div style={{position:"absolute",top:12,left:12,background:wc.bg,color:wc.text,padding:"5px 12px",borderRadius:7,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:4,letterSpacing:"0.05em",textTransform:"uppercase"}}>{Ic.water} {p.waterType} Front</div>
+        </div>
+        <div style={{padding:"20px 24px"}}>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16}}>
+            {[{i:Ic.bed,v:p.beds,l:"Beds"},{i:Ic.bath,v:p.baths,l:"Baths"},{i:Ic.area,v:p.sqft?.toLocaleString(),l:"SqFt"},{i:Ic.anchor,v:`${p.waterFrontage||0}ft`,l:"Waterfront"},{v:p.yearBuilt,l:"Built"},{v:`${p.lotAcres||0} ac`,l:"Lot"}].map((it,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:C.g100,borderRadius:7,fontSize:12,color:C.g700}}>
+                {it.i&&<span style={{color:C.ocean}}>{it.i}</span>}
+                <span style={{fontWeight:600}}>{it.v}</span>
+                <span style={{color:C.g500,fontSize:10}}>{it.l}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{fontSize:14,lineHeight:1.7,color:C.g700,marginBottom:20}}>{p.description}</p>
+          <div style={{display:"flex",gap:10}}>
+            <a href={p.zillowUrl} target="_blank" rel="noopener noreferrer" style={{
+              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              padding:"12px 18px",background:C.navy,color:C.white,borderRadius:9,fontSize:14,fontWeight:600,textDecoration:"none",cursor:"pointer"
+            }}>View on Zillow {Ic.ext}</a>
+            <button onClick={()=>toggleFav(p.id)} style={{
+              display:"flex",alignItems:"center",justifyContent:"center",gap:5,padding:"12px 18px",
+              background:isFav?"#FEF0EE":C.g100,border:`1.5px solid ${isFav?C.coral:C.g300}`,
+              borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer",color:isFav?C.coral:C.g700,
+            }}>{Ic.heart(isFav)} {isFav?"Saved":"Save"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ADMIN PANEL ───
+function AdminPanel({properties, setProperties, onExit}) {
+  const [form, setForm] = useState({
+    address:"",city:"",state:"",county:"",price:"",beds:"",baths:"",sqft:"",
+    lotAcres:"",waterType:"",waterFrontage:"",yearBuilt:"",description:"",
+    image:"",zillowUrl:"",featured:false,
+  });
+  const [editing, setEditing] = useState(null);
+  const fileRef = useRef(null);
+
+  const counties = form.state ? COUNTIES_BY_STATE[form.state]||[] : [];
+
+  const updateField = (k,v) => setForm(prev=>({...prev,[k]:v}));
+
+  const saveProperty = () => {
+    if(!form.address||!form.state||!form.waterType||!form.price) {
+      alert("Please fill in at least: Address, State, Water Type, and Price");
+      return;
+    }
+    const prop = {
+      ...form,
+      id: editing || `CL-${Date.now()}`,
+      price: Number(form.price),
+      beds: Number(form.beds)||0,
+      baths: Number(form.baths)||0,
+      sqft: Number(form.sqft)||0,
+      lotAcres: Number(form.lotAcres)||0,
+      waterFrontage: Number(form.waterFrontage)||0,
+      yearBuilt: Number(form.yearBuilt)||0,
+      daysOnMarket: Math.floor((Date.now() - new Date().setDate(new Date().getDate()-7))/86400000),
+      image: form.image || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=400&fit=crop",
+      zillowUrl: form.zillowUrl || `https://www.zillow.com/homes/${encodeURIComponent(form.address+" "+form.state)}/`,
+      featured: form.featured,
+      isDemo: false,
+    };
+
+    if(editing) {
+      setProperties(prev=>prev.map(p=>p.id===editing?prop:p));
+    } else {
+      setProperties(prev=>[prop,...prev]);
+    }
+    setForm({address:"",city:"",state:"",county:"",price:"",beds:"",baths:"",sqft:"",lotAcres:"",waterType:"",waterFrontage:"",yearBuilt:"",description:"",image:"",zillowUrl:"",featured:false});
+    setEditing(null);
+  };
+
+  const editProp = (p) => {
+    setEditing(p.id);
+    setForm({...p, price:String(p.price), beds:String(p.beds), baths:String(p.baths), sqft:String(p.sqft), lotAcres:String(p.lotAcres), waterFrontage:String(p.waterFrontage), yearBuilt:String(p.yearBuilt)});
+  };
+
+  const deleteProp = (id) => {
+    if(confirm("Delete this property?")) setProperties(prev=>prev.filter(p=>p.id!==id));
+  };
+
+  const exportData = () => {
+    const data = JSON.stringify(properties.filter(p=>!p.isDemo), null, 2);
+    const blob = new Blob([data], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="coastlist-properties.json"; a.click();
+  };
+
+  const importData = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if(Array.isArray(data)) {
+          setProperties(prev=>[...data,...prev.filter(p=>p.isDemo)]);
+          alert(`Imported ${data.length} properties!`);
+        }
+      } catch { alert("Invalid JSON file"); }
+    };
+    reader.readAsText(file);
+  };
+
+  const clearDemos = () => {
+    if(confirm("Remove all demo properties?")) setProperties(prev=>prev.filter(p=>!p.isDemo));
+  };
+
+  const realProps = properties.filter(p=>!p.isDemo);
+  const demoProps = properties.filter(p=>p.isDemo);
+
+  const inputStyle = {
+    padding:"9px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,
+    fontFamily:"'DM Sans',sans-serif",color:C.g800,width:"100%",outline:"none",
+    transition:"border 0.2s",
+  };
+
+  return (
+    <div style={{fontFamily:"'DM Sans',sans-serif",background:C.sandLight,minHeight:"100vh"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+      <style>{`* { box-sizing:border-box; margin:0; padding:0; }`}</style>
+
+      {/* Admin Header */}
+      <header style={{background:C.navy,padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{fontSize:18,fontWeight:800,color:C.white,fontFamily:"'Playfair Display',serif"}}>CoastList</div>
+          <div style={{background:C.coral+"33",color:C.coral,padding:"3px 9px",borderRadius:5,fontSize:10,fontWeight:700,letterSpacing:"0.06em"}}>ADMIN</div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={exportData} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 12px",background:"transparent",border:`1px solid rgba(255,255,255,0.3)`,borderRadius:7,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer"}}>{Ic.download} Export</button>
+          <button onClick={()=>fileRef.current?.click()} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 12px",background:"transparent",border:`1px solid rgba(255,255,255,0.3)`,borderRadius:7,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer"}}>{Ic.upload} Import</button>
+          <input ref={fileRef} type="file" accept=".json" onChange={importData} style={{display:"none"}}/>
+          <button onClick={onExit} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 12px",background:C.seafoam,border:"none",borderRadius:7,color:C.navy,fontSize:12,fontWeight:700,cursor:"pointer"}}>View Live Site</button>
+        </div>
+      </header>
+
+      <div style={{maxWidth:900,margin:"0 auto",padding:24}}>
+        {/* Stats */}
+        <div style={{display:"flex",gap:12,marginBottom:20}}>
+          {[{l:"Total Live",v:realProps.length,c:C.navy},{l:"Demo",v:demoProps.length,c:C.g500},{l:"Featured",v:properties.filter(p=>p.featured).length,c:C.gold}].map((s,i)=>(
+            <div key={i} style={{flex:1,background:C.white,borderRadius:10,padding:"14px 18px",border:`1px solid ${C.g200}`}}>
+              <div style={{fontSize:10,fontWeight:600,color:C.g500,letterSpacing:"0.06em"}}>{s.l}</div>
+              <div style={{fontSize:24,fontWeight:800,color:s.c,fontFamily:"'Playfair Display',serif"}}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add/Edit Form */}
+        <div style={{background:C.white,borderRadius:13,padding:20,border:`1px solid ${C.g200}`,marginBottom:24}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.navy,marginBottom:14,display:"flex",alignItems:"center",gap:7}}>
+            {Ic.plus} {editing?"Edit Property":"Add New Property"}
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{gridColumn:"1/-1"}}>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Zillow URL</label>
+              <input placeholder="https://www.zillow.com/homedetails/..." value={form.zillowUrl} onChange={e=>updateField("zillowUrl",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Address *</label>
+              <input placeholder="123 Oceanview Dr" value={form.address} onChange={e=>updateField("address",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>City</label>
+              <input placeholder="Miami Beach" value={form.city} onChange={e=>updateField("city",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>State *</label>
+              <Dropdown value={form.state} options={STATES} onChange={v=>{updateField("state",v);updateField("county","")}} placeholder="Select state" icon={Ic.pin}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>County</label>
+              <Dropdown value={form.county} options={counties} onChange={v=>updateField("county",v)} placeholder={form.state?"Select county":"Pick state first"} disabled={!form.state}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Price *</label>
+              <input type="number" placeholder="2500000" value={form.price} onChange={e=>updateField("price",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Water Type *</label>
+              <Dropdown value={form.waterType} options={WATER_TYPES} onChange={v=>updateField("waterType",v)} placeholder="Select type" icon={Ic.water}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Beds</label>
+              <input type="number" placeholder="4" value={form.beds} onChange={e=>updateField("beds",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Baths</label>
+              <input type="number" placeholder="3" value={form.baths} onChange={e=>updateField("baths",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Sq Ft</label>
+              <input type="number" placeholder="3200" value={form.sqft} onChange={e=>updateField("sqft",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Water Frontage (ft)</label>
+              <input type="number" placeholder="180" value={form.waterFrontage} onChange={e=>updateField("waterFrontage",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Lot Acres</label>
+              <input type="number" step="0.01" placeholder="0.82" value={form.lotAcres} onChange={e=>updateField("lotAcres",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Year Built</label>
+              <input type="number" placeholder="2018" value={form.yearBuilt} onChange={e=>updateField("yearBuilt",e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Image URL</label>
+              <input placeholder="https://images.unsplash.com/..." value={form.image} onChange={e=>updateField("image",e.target.value)} style={inputStyle}/>
+            </div>
+            <div style={{gridColumn:"1/-1"}}>
+              <label style={{fontSize:11,fontWeight:600,color:C.g600,marginBottom:3,display:"block"}}>Description</label>
+              <textarea placeholder="Stunning waterfront estate with..." value={form.description} onChange={e=>updateField("description",e.target.value)} rows={3} style={{...inputStyle,resize:"vertical"}}/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <input type="checkbox" checked={form.featured} onChange={e=>updateField("featured",e.target.checked)} id="feat"/>
+              <label htmlFor="feat" style={{fontSize:13,color:C.g700,fontWeight:500,cursor:"pointer"}}>Featured listing</label>
+            </div>
+          </div>
+
+          <div style={{display:"flex",gap:10,marginTop:16}}>
+            <button onClick={saveProperty} style={{
+              display:"flex",alignItems:"center",gap:5,padding:"10px 20px",
+              background:C.green,color:C.white,border:"none",borderRadius:9,fontSize:14,fontWeight:700,cursor:"pointer"
+            }}>{Ic.check} {editing?"Update":"Add Property"}</button>
+            {editing&&<button onClick={()=>{setEditing(null);setForm({address:"",city:"",state:"",county:"",price:"",beds:"",baths:"",sqft:"",lotAcres:"",waterType:"",waterFrontage:"",yearBuilt:"",description:"",image:"",zillowUrl:"",featured:false})}} style={{
+              padding:"10px 20px",background:C.g100,color:C.g700,border:`1px solid ${C.g300}`,borderRadius:9,fontSize:13,fontWeight:600,cursor:"pointer"
+            }}>Cancel</button>}
+          </div>
+        </div>
+
+        {/* Property List */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontSize:15,fontWeight:700,color:C.navy}}>Properties ({properties.length})</div>
+          {demoProps.length>0&&<button onClick={clearDemos} style={{fontSize:12,color:C.coral,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Remove all demos</button>}
+        </div>
+
+        {properties.map(p=>(
+          <div key={p.id} style={{
+            display:"flex",alignItems:"center",gap:12,padding:12,background:C.white,
+            borderRadius:10,border:`1px solid ${C.g200}`,marginBottom:8,
+          }}>
+            <img src={p.image} alt="" style={{width:70,height:50,objectFit:"cover",borderRadius:6,flexShrink:0}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.navy}}>{fmtPrice(p.price)}</div>
+              <div style={{fontSize:12,color:C.g600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.address}, {p.county}, {p.state}</div>
+            </div>
+            <div style={{
+              padding:"3px 8px",borderRadius:5,fontSize:10,fontWeight:700,
+              background:(WATER_COLORS[p.waterType]||WATER_COLORS.Ocean).bg,color:"#fff",
+              letterSpacing:"0.04em",textTransform:"uppercase",flexShrink:0,
+            }}>{p.waterType}</div>
+            {p.isDemo&&<span style={{fontSize:10,color:C.g500,fontWeight:600}}>DEMO</span>}
+            {p.featured&&<span style={{color:C.gold}}>{Ic.star}</span>}
+            <button onClick={()=>editProp(p)} style={{background:C.g100,border:`1px solid ${C.g300}`,borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",color:C.g700}}>Edit</button>
+            <button onClick={()=>deleteProp(p.id)} style={{background:"none",border:"none",cursor:"pointer",color:C.coral,display:"flex"}}>{Ic.trash}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ───
+export default function CoastList() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [properties, setProperties] = useState(DEMO_PROPERTIES);
+  const [selState, setSelState] = useState("");
+  const [selCounty, setSelCounty] = useState("");
+  const [selWater, setSelWater] = useState("");
+  const [search, setSearch] = useState("");
+  const [selProp, setSelProp] = useState(null);
+  const [favs, setFavs] = useState(new Set());
+  const [showHero, setShowHero] = useState(true);
+  const [view, setView] = useState("grid");
+  const listRef = useRef(null);
+
+  // Check URL for admin mode & load saved properties
+  useEffect(() => {
+    if(typeof window !== "undefined") {
+      if(window.location.search.includes("admin=true")) setIsAdmin(true);
+      const saved = localStorage.getItem("coastlist-properties");
+      if(saved) {
+        try { setProperties(JSON.parse(saved)); } catch {}
+      }
+    }
+  }, []);
+
+  // Save properties to localStorage whenever they change
+  useEffect(() => {
+    if(typeof window !== "undefined") {
+      localStorage.setItem("coastlist-properties", JSON.stringify(properties));
+    }
+  }, [properties]);
+
+  const counties = selState ? COUNTIES_BY_STATE[selState]||[] : [];
+
+  const filtered = useMemo(() => {
+    return properties.filter(p => {
+      if(selState && p.state !== selState) return false;
+      if(selCounty && p.county !== selCounty) return false;
+      if(selWater && p.waterType !== selWater) return false;
+      if(search) {
+        const q = search.toLowerCase();
+        return p.address?.toLowerCase().includes(q) || p.city?.toLowerCase().includes(q) || p.state?.toLowerCase().includes(q) || p.county?.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [properties, selState, selCounty, selWater, search]);
+
+  const toggleFav = useCallback((id) => {
+    setFavs(prev => { const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
+  }, []);
+
+  useEffect(() => {
+    if(!selState || !COUNTIES_BY_STATE[selState]?.includes(selCounty)) setSelCounty("");
+  }, [selState]);
+
+  const scrollToList = () => {
+    setShowHero(false);
+    setTimeout(()=>listRef.current?.scrollIntoView({behavior:"smooth"}),50);
+  };
+
+  if(isAdmin) return <AdminPanel properties={properties} setProperties={setProperties} onExit={()=>setIsAdmin(false)}/>;
+
+  const activeFilters = [selState,selCounty,selWater].filter(Boolean).length;
+
+  return (
+    <div style={{fontFamily:"'DM Sans',sans-serif",background:C.sandLight,minHeight:"100vh"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+      <style>{`
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes waveSlide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:${C.g300};border-radius:10px}
+        *{box-sizing:border-box;margin:0;padding:0}a{text-decoration:none}
+      `}</style>
+
+      {/* Header */}
+      <header style={{
+        display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 24px",
+        background:showHero?"transparent":C.white,borderBottom:showHero?"none":`1px solid ${C.g200}`,
+        position:showHero?"absolute":"sticky",top:0,left:0,right:0,zIndex:1000,
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>setShowHero(true)}>
+          <div style={{fontSize:20,fontWeight:800,color:showHero?C.white:C.navy,fontFamily:"'Playfair Display',serif"}}>CoastList</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          {favs.size>0&&<div style={{display:"flex",alignItems:"center",gap:3,fontSize:12,color:showHero?C.white:C.coral,fontWeight:600}}>{Ic.heart(true)} {favs.size}</div>}
+        </div>
+      </header>
+
+      {/* Hero */}
+      {showHero&&(
+        <div style={{position:"relative",background:`linear-gradient(145deg,${C.navy} 0%,#1E3A5F 40%,${C.ocean} 100%)`,padding:"80px 40px 100px",overflow:"hidden",textAlign:"center"}}>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,height:180,overflow:"hidden",opacity:0.06,pointerEvents:"none"}}>
+            <svg viewBox="0 0 1440 200" style={{position:"absolute",bottom:0,width:"200%",animation:"waveSlide 12s linear infinite"}}>
+              <path d="M0,100 C320,180 440,20 720,100 C1000,180 1120,20 1440,100 C1760,180 1880,20 2160,100 L2160,200 L0,200 Z" fill={C.navy}/>
+            </svg>
+          </div>
+          <div style={{position:"relative",zIndex:1,maxWidth:660,margin:"0 auto"}}>
+            <div style={{fontSize:13,letterSpacing:"0.25em",color:C.seafoam,fontWeight:600,textTransform:"uppercase",marginBottom:14}}>Waterfront Living, Curated</div>
+            <h1 style={{fontSize:"clamp(34px,5vw,52px)",fontWeight:800,color:C.white,lineHeight:1.1,fontFamily:"'Playfair Display',serif",margin:"0 0 18px"}}>
+              Discover Your <span style={{color:C.seafoam}}>Waterfront</span> Dream Home
+            </h1>
+            <p style={{fontSize:"clamp(14px,2vw,17px)",color:"rgba(255,255,255,0.7)",lineHeight:1.6,maxWidth:500,margin:"0 auto 32px"}}>
+              Every property in our collection borders a river, lake, ocean, or waterway.
+            </p>
+            <button onClick={scrollToList} style={{
+              padding:"14px 36px",background:C.seafoam,color:C.navy,border:"none",borderRadius:11,
+              fontSize:15,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:7,
+              boxShadow:"0 4px 20px rgba(124,197,184,0.4)",
+            }}>{Ic.search} Explore Properties</button>
+          </div>
+        </div>
+      )}
+
+      {/* Main */}
+      <div ref={listRef} style={{maxWidth:1400,margin:"0 auto",padding:"0 22px 40px"}}>
+        {/* Filters */}
+        <div style={{position:"sticky",top:showHero?0:58,zIndex:500,background:"rgba(245,239,230,0.95)",backdropFilter:"blur(12px)",padding:"14px 0",marginBottom:18,borderBottom:`1px solid ${C.sandDark}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,padding:"9px 12px",background:C.white,border:`1.5px solid ${C.g300}`,borderRadius:9,flex:"1 1 180px",maxWidth:260}}>
+              {Ic.search}
+              <input placeholder="Search..." value={search} onChange={e=>setSearch(e.target.value)} style={{border:"none",outline:"none",flex:1,fontSize:13,fontFamily:"'DM Sans',sans-serif",background:"transparent",color:C.g800}}/>
+              {search&&<button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",display:"flex",color:C.g500}}>{Ic.x}</button>}
+            </div>
+            <Dropdown value={selState} options={STATES} onChange={setSelState} placeholder="All States" icon={Ic.pin}/>
+            <Dropdown value={selCounty} options={counties} onChange={setSelCounty} placeholder={selState?"All Counties":"State first"} disabled={!selState}/>
+            <div style={{width:1,height:26,background:C.g300,flexShrink:0}}/>
+            <Dropdown value={selWater} options={WATER_TYPES} onChange={setSelWater} placeholder="All Water" icon={Ic.water}/>
+            <div style={{flex:1}}/>
+            {activeFilters>0&&<button onClick={()=>{setSelState("");setSelCounty("");setSelWater("");setSearch("")}} style={{display:"flex",alignItems:"center",gap:3,padding:"7px 12px",background:C.coralLight+"22",border:`1px solid ${C.coral}33`,borderRadius:7,fontSize:11,fontWeight:600,color:C.coral,cursor:"pointer"}}>Clear {activeFilters} {Ic.x}</button>}
+            <div style={{display:"flex",background:C.white,borderRadius:9,border:`1.5px solid ${C.g300}`,overflow:"hidden"}}>
+              {[{k:"grid",i:Ic.grid,l:"Grid"},{k:"map",i:Ic.map,l:"Map"}].map(v=>(
+                <button key={v.k} onClick={()=>setView(v.k)} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 12px",border:"none",fontSize:12,fontWeight:600,cursor:"pointer",background:view===v.k?C.navy:"transparent",color:view===v.k?C.white:C.g600,fontFamily:"'DM Sans',sans-serif"}}>{v.i} {v.l}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{marginTop:8,fontSize:12,color:C.g600}}>
+            <span style={{fontWeight:700,color:C.navy}}>{filtered.length}</span> waterfront {filtered.length===1?"property":"properties"}
+            {selState&&<span> in <strong>{selState}</strong></span>}
+            {selWater&&<span> · <span style={{color:(WATER_COLORS[selWater]||{}).bg,fontWeight:600}}>{selWater}</span></span>}
+          </div>
+        </div>
+
+        {/* Grid */}
+        {filtered.length===0 ? (
+          <div style={{textAlign:"center",padding:"50px 20px",color:C.g500}}>
+            <div style={{fontSize:44,marginBottom:10}}>🌊</div>
+            <div style={{fontSize:17,fontWeight:600,color:C.g700,marginBottom:6}}>No properties found</div>
+            <div style={{fontSize:13}}>Try adjusting your filters.</div>
+          </div>
+        ) : (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:18}}>
+            {filtered.map(p=><Card key={p.id} p={p} onSelect={setSelProp} favs={favs} toggleFav={toggleFav}/>)}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer style={{background:C.navy,color:"rgba(255,255,255,0.5)",padding:"32px 24px",textAlign:"center",fontSize:12,lineHeight:1.8}}>
+        <div style={{fontSize:18,fontWeight:800,color:C.white,fontFamily:"'Playfair Display',serif",marginBottom:10,opacity:0.7}}>CoastList</div>
+        <div style={{maxWidth:460,margin:"0 auto 16px"}}>Curating waterfront properties where property lines border rivers, lakes, oceans, and waterways.</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>© {new Date().getFullYear()} CoastList.com — All rights reserved</div>
+      </footer>
+
+      {/* Detail Modal */}
+      {selProp&&<DetailModal p={selProp} onClose={()=>setSelProp(null)} favs={favs} toggleFav={toggleFav}/>}
+    </div>
+  );
+}
