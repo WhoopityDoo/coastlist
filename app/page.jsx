@@ -356,7 +356,51 @@ export default function CoastList(){
   const STATES=["Florida","California","North Carolina","South Carolina","Massachusetts","Maine","Oregon","Washington","Hawaii","Texas","New Jersey","Connecticut","Virginia","Maryland","Georgia","New York","Rhode Island"];
   const COUNTIES_BY_STATE_LOCAL={"Florida":["Miami-Dade","Palm Beach","Monroe","Collier","Sarasota","Pinellas","Volusia","St. Johns","Brevard","Lee","Martin","Duval","Bay","Walton"],"California":["Los Angeles","San Diego","Orange","Santa Barbara","Monterey","Marin","San Francisco"],"North Carolina":["New Hanover","Dare","Carteret","Brunswick","Currituck","Onslow"],"South Carolina":["Charleston","Beaufort","Horry","Georgetown"],"Massachusetts":["Barnstable","Nantucket","Dukes","Plymouth","Essex"],"Maine":["Cumberland","York","Hancock","Lincoln","Knox"],"Oregon":["Clatsop","Lincoln","Tillamook","Coos","Curry"],"Washington":["San Juan","Island","Whatcom","Clallam","Pacific"],"Hawaii":["Honolulu","Maui","Hawaii","Kauai"],"Texas":["Galveston","Cameron","Nueces","Aransas","Brazoria"],"New Jersey":["Cape May","Ocean","Monmouth","Atlantic"],"Connecticut":["Fairfield","New London","Middlesex","New Haven"],"Virginia":["Virginia Beach","Accomack","Northampton","Lancaster"],"Maryland":["Worcester","Talbot","Dorchester","Somerset","Anne Arundel"],"Georgia":["Chatham","Glynn","Camden","McIntosh"],"New York":["Suffolk","Nassau","Westchester","Queens"],"Rhode Island":["Washington","Newport","Bristol"]};
 
-  useEffect(()=>{if(typeof window!=="undefined"){if(window.location.search.includes("admin=true"))setIsAdmin(true);const s=localStorage.getItem("coastlist-props-v4");if(s)try{setProperties(JSON.parse(s))}catch{}};},[]);
+  useEffect(()=>{if(typeof window!=="undefined"){
+    if(window.location.search.includes("admin=true"))setIsAdmin(true);
+    const s=localStorage.getItem("coastlist-props-v4");if(s)try{setProperties(JSON.parse(s))}catch{}
+    // Auto-import from URL: ?import_url=<encoded JSON URL>
+    const params=new URLSearchParams(window.location.search);
+    const importUrl=params.get("import_url");
+    if(importUrl){
+      fetch(importUrl).then(r=>r.json()).then(data=>{
+        const newProps=Array.isArray(data)?data:(data.properties||[]);
+        if(newProps.length>0){
+          setProperties(prev=>{
+            const existingIds=new Set(prev.map(p=>p.id));
+            const unique=newProps.filter(p=>!existingIds.has(p.id));
+            if(unique.length>0){
+              const merged=[...unique,...prev];
+              localStorage.setItem("coastlist-props-v4",JSON.stringify(merged));
+              return merged;
+            }
+            return prev;
+          });
+          // Clean URL after import
+          window.history.replaceState({},"",window.location.pathname);
+        }
+      }).catch(e=>console.error("Auto-import failed:",e));
+    }
+    // Auto-import from inline JSON: ?import_json=<encoded JSON>
+    const importJson=params.get("import_json");
+    if(importJson){
+      try{
+        const newProps=JSON.parse(decodeURIComponent(importJson));
+        const arr=Array.isArray(newProps)?newProps:[newProps];
+        setProperties(prev=>{
+          const existingIds=new Set(prev.map(p=>p.id));
+          const unique=arr.filter(p=>!existingIds.has(p.id));
+          if(unique.length>0){
+            const merged=[...unique,...prev];
+            localStorage.setItem("coastlist-props-v4",JSON.stringify(merged));
+            return merged;
+          }
+          return prev;
+        });
+        window.history.replaceState({},"",window.location.pathname);
+      }catch(e){console.error("Inline import failed:",e)}
+    }
+  };},[]);
   useEffect(()=>{if(typeof window!=="undefined"&&properties.length>0)localStorage.setItem("coastlist-props-v4",JSON.stringify(properties))},[properties]);
 
   const counties=selState?COUNTIES_BY_STATE_LOCAL[selState]||[]:[];
