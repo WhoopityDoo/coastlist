@@ -166,7 +166,21 @@ export async function POST(request) {
       const results = searchData?.data?.listings || searchData?.listings || searchData?.results || (Array.isArray(searchData) ? searchData : []);
 
       if (results.length === 0) {
-        return Response.json({ success: false, error: "No listings found for this location", searchedFor: address }, { status: 404 });
+        return Response.json({
+          success: false,
+          error: "No listings found for this location",
+          searchedFor: address,
+          debug: {
+            apiSuccess: searchData?.success,
+            hasData: !!searchData?.data,
+            dataKeys: searchData?.data ? Object.keys(searchData.data) : null,
+            topLevelKeys: Object.keys(searchData || {}),
+            apiError: searchData?.error,
+            creditsUsed: searchData?.credits_used,
+            hasApiKey: !!apiKey,
+            apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + '...' : null,
+          }
+        }, { status: 404 });
       }
 
       // Take best match
