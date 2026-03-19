@@ -155,6 +155,7 @@ function PropertyPage({p,onBack,favs,toggleFav,allProperties,onSelect}){
 
 // ─── ADMIN PANEL with URL Fetch ───
 function Admin({properties,setProperties,onExit}){
+  const[mode,setMode]=useState("manual"); // "manual" or "url"
   const[zillowUrl,setZillowUrl]=useState("");
   const[fetching,setFetching]=useState(false);
   const[fetchError,setFetchError]=useState("");
@@ -163,6 +164,47 @@ function Admin({properties,setProperties,onExit}){
   const[waterFrontage,setWaterFrontage]=useState("");
   const[featured,setFeatured]=useState(false);
   const fileRef=useRef(null);
+
+  // Manual entry fields
+  const[mAddr,setMAddr]=useState("");
+  const[mCity,setMCity]=useState("");
+  const[mState,setMState]=useState("");
+  const[mZip,setMZip]=useState("");
+  const[mPrice,setMPrice]=useState("");
+  const[mBeds,setMBeds]=useState("");
+  const[mBaths,setMBaths]=useState("");
+  const[mSqft,setMSqft]=useState("");
+  const[mYear,setMYear]=useState("");
+  const[mDesc,setMDesc]=useState("");
+  const[mImgUrl,setMImgUrl]=useState("");
+  const[mImgs,setMImgs]=useState([]);
+
+  const addManualImage=()=>{
+    if(mImgUrl&&mImgUrl.startsWith("http")){setMImgs(prev=>[...prev,mImgUrl]);setMImgUrl("")}
+  };
+
+  const addManualProperty=()=>{
+    if(!mAddr){setFetchError("Address is required");return}
+    if(!mPrice){setFetchError("Price is required");return}
+    if(!waterType){setFetchError("Select a Water Type");return}
+    const prop={
+      id:`CL-${Date.now()}`,
+      address:mAddr,city:mCity,state:mState,zipcode:mZip,
+      price:Number(mPrice.replace(/[^0-9]/g,""))||0,
+      beds:Number(mBeds)||0,baths:Number(mBaths)||0,sqft:Number(mSqft.replace(/[^0-9]/g,""))||0,
+      yearBuilt:Number(mYear)||0,
+      description:mDesc,
+      images:mImgs.length>0?mImgs:[],
+      image:mImgs[0]||"",
+      features:[],
+      waterType,waterFrontage:Number(waterFrontage)||0,featured,
+      daysOnMarket:1,addedAt:new Date().toISOString(),source:"manual",
+    };
+    setProperties(prev=>[prop,...prev]);
+    setMAddr("");setMCity("");setMState("");setMZip("");setMPrice("");setMBeds("");setMBaths("");
+    setMSqft("");setMYear("");setMDesc("");setMImgUrl("");setMImgs([]);
+    setWaterType("");setWaterFrontage("");setFeatured(false);setFetchError("");
+  };
 
   const fetchListing=async()=>{
     if(!zillowUrl.includes("zillow.com/homedetails")){setFetchError("Please paste a Zillow listing URL (must contain /homedetails/)");return}
@@ -216,92 +258,153 @@ function Admin({properties,setProperties,onExit}){
       </header>
 
       <div style={{maxWidth:900,margin:"0 auto",padding:24}}>
-        {/* Step 1: Paste URL */}
-        <div style={{background:C.white,borderRadius:14,padding:24,border:`1px solid ${C.g200}`,marginBottom:20}}>
-          <div style={{fontSize:18,fontWeight:700,color:C.navy,marginBottom:4,fontFamily:"'Playfair Display',serif",display:"flex",alignItems:"center",gap:8}}>{I.link} Add Property from Zillow</div>
-          <div style={{fontSize:13,color:C.g500,marginBottom:16}}>Paste a Zillow listing URL and we'll pull in all the details automatically.</div>
+        {/* Mode toggle */}
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          <button onClick={()=>{setMode("manual");setFetchError("")}} style={{padding:"9px 20px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",border:mode==="manual"?`2px solid ${C.ocean}`:`2px solid ${C.g300}`,background:mode==="manual"?C.ocean:"white",color:mode==="manual"?"white":C.g700}}>{I.plus} Add Property</button>
+          <button onClick={()=>{setMode("url");setFetchError("")}} style={{padding:"9px 20px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",border:mode==="url"?`2px solid ${C.ocean}`:`2px solid ${C.g300}`,background:mode==="url"?C.ocean:"white",color:mode==="url"?"white":C.g700}}>{I.link} Fetch from URL</button>
+        </div>
 
-          <div style={{display:"flex",gap:10,marginBottom:12}}>
-            <div style={{flex:1,display:"flex",alignItems:"center",gap:8,padding:"11px 14px",background:C.g100,border:`1.5px solid ${C.g300}`,borderRadius:10}}>
-              {I.link}
-              <input value={zillowUrl} onChange={e=>setZillowUrl(e.target.value)} placeholder="https://www.zillow.com/homedetails/123-Main-St..." style={{border:"none",outline:"none",flex:1,fontSize:14,fontFamily:"'DM Sans',sans-serif",background:"transparent",color:C.g800}} onKeyDown={e=>{if(e.key==="Enter")fetchListing()}}/>
-              {zillowUrl&&<button onClick={()=>{setZillowUrl("");setFetchedData(null);setFetchError("")}} style={{background:"none",border:"none",cursor:"pointer",display:"flex",color:C.g500}}>{I.x}</button>}
-            </div>
-            <button onClick={fetchListing} disabled={fetching} style={{display:"flex",alignItems:"center",gap:6,padding:"11px 24px",background:fetching?C.g400:C.ocean,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:fetching?"wait":"pointer",whiteSpace:"nowrap",minWidth:120,justifyContent:"center"}}>
-              {fetching?<><span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>{I.load}</span> Fetching...</>:<>{I.search} Fetch Listing</>}
-            </button>
-          </div>
+        {fetchError&&<div style={{padding:"10px 14px",background:C.redBg,borderRadius:8,fontSize:13,color:C.coral,marginBottom:12}}>{fetchError}</div>}
 
-          {fetchError&&<div style={{padding:"10px 14px",background:C.redBg,borderRadius:8,fontSize:13,color:C.coral,marginBottom:12}}>{fetchError}</div>}
+        {/* ─── MANUAL ENTRY MODE ─── */}
+        {mode==="manual"&&(
+          <div style={{background:C.white,borderRadius:14,padding:24,border:`1px solid ${C.g200}`,marginBottom:20}}>
+            <div style={{fontSize:18,fontWeight:700,color:C.navy,marginBottom:4,fontFamily:"'Playfair Display',serif",display:"flex",alignItems:"center",gap:8}}>{I.plus} Add Property</div>
+            <div style={{fontSize:13,color:C.g500,marginBottom:16}}>Enter property details from a Zillow listing. Open the listing in another tab and copy the info.</div>
 
-          {/* Step 2: Preview fetched data */}
-          {fetchedData&&(
-            <div style={{border:`2px solid ${C.green}44`,borderRadius:12,overflow:"hidden",marginTop:8}}>
-              <div style={{background:C.greenBg,padding:"10px 16px",fontSize:13,fontWeight:700,color:C.green,display:"flex",alignItems:"center",gap:6}}>{I.check} Listing data fetched successfully!</div>
-
-              {/* Image preview */}
-              {fetchedData.images&&fetchedData.images.length>0&&(
-                <div style={{display:"flex",gap:4,padding:12,overflowX:"auto",background:C.g100}}>
-                  {fetchedData.images.map((img,i)=>(
-                    <img key={i} src={img} alt="" style={{width:140,height:95,objectFit:"cover",borderRadius:8,flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>
-                  ))}
-                </div>
-              )}
-
-              {/* Property summary */}
-              <div style={{padding:16}}>
-                <div style={{fontSize:22,fontWeight:800,color:C.navy,fontFamily:"'Playfair Display',serif"}}>{fetchedData.price?fmtP(fetchedData.price):"Price not found"}</div>
-                <div style={{fontSize:15,color:C.g700,fontWeight:500,marginTop:4}}>{fetchedData.address}</div>
-                <div style={{fontSize:13,color:C.g500,marginTop:2}}>{fetchedData.city}{fetchedData.city&&fetchedData.state?", ":""}{fetchedData.state} {fetchedData.zipcode||""}</div>
-
-                <div style={{display:"flex",gap:16,marginTop:12,fontSize:13,color:C.g600}}>
-                  {fetchedData.beds>0&&<span>{fetchedData.beds} Beds</span>}
-                  {fetchedData.baths>0&&<span>{fetchedData.baths} Baths</span>}
-                  {fetchedData.sqft>0&&<span>{fetchedData.sqft.toLocaleString()} SqFt</span>}
-                  {fetchedData.lotAcres>0&&<span>{fetchedData.lotAcres} Acres</span>}
-                  {fetchedData.yearBuilt>0&&<span>Built {fetchedData.yearBuilt}</span>}
-                </div>
-
-                {fetchedData.description&&(
-                  <div style={{marginTop:12,fontSize:13,color:C.g600,lineHeight:1.6,maxHeight:80,overflow:"hidden"}}>{fetchedData.description.substring(0,200)}...</div>
-                )}
-
-                {fetchedData.features&&fetchedData.features.length>0&&(
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
-                    {fetchedData.features.map((f,i)=><span key={i} style={{padding:"3px 8px",background:C.oceanPale,borderRadius:5,fontSize:11,color:C.ocean,fontWeight:500}}>{f}</span>)}
-                  </div>
-                )}
-
-                {fetchedData.images?.length>0&&<div style={{marginTop:8,fontSize:11,color:C.g500}}>{fetchedData.images.length} photos loaded</div>}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+              <div style={{gridColumn:"1/3"}}>
+                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Street Address *</label>
+                <input value={mAddr} onChange={e=>setMAddr(e.target.value)} placeholder="123 Ocean Drive" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
               </div>
-
-              {/* Step 3: Select water type and add */}
-              <div style={{padding:"16px",borderTop:`1px solid ${C.g200}`,background:C.g100}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:10}}>Before publishing — classify the waterfront:</div>
-                <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                  <div style={{display:"flex",gap:6}}>
-                    {WATER_TYPES.map(wt=>(
-                      <button key={wt} onClick={()=>setWaterType(wt)} style={{
-                        padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",
-                        border:waterType===wt?`2px solid ${WC[wt].bg}`:`2px solid ${C.g300}`,
-                        background:waterType===wt?WC[wt].bg:"white",
-                        color:waterType===wt?"white":C.g700,
-                        transition:"all 0.2s",
-                      }}>{wt}</button>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>City</label>
+                <input value={mCity} onChange={e=>setMCity(e.target.value)} placeholder="Key Largo" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+              </div>
+              <div style={{display:"flex",gap:12}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>State</label>
+                  <input value={mState} onChange={e=>setMState(e.target.value)} placeholder="Florida" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+                </div>
+                <div style={{width:100}}>
+                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Zip</label>
+                  <input value={mZip} onChange={e=>setMZip(e.target.value)} placeholder="33037" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+                </div>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Price *</label>
+                <input value={mPrice} onChange={e=>setMPrice(e.target.value)} placeholder="750000" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+              </div>
+              <div style={{display:"flex",gap:12}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Beds</label>
+                  <input value={mBeds} onChange={e=>setMBeds(e.target.value)} placeholder="3" type="number" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+                </div>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Baths</label>
+                  <input value={mBaths} onChange={e=>setMBaths(e.target.value)} placeholder="2" type="number" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+                </div>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Sqft</label>
+                <input value={mSqft} onChange={e=>setMSqft(e.target.value)} placeholder="1800" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Year Built</label>
+                <input value={mYear} onChange={e=>setMYear(e.target.value)} placeholder="2005" type="number" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+              </div>
+              <div style={{gridColumn:"1/3"}}>
+                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Description</label>
+                <textarea value={mDesc} onChange={e=>setMDesc(e.target.value)} placeholder="Copy the listing description from Zillow..." rows={3} style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,fontFamily:"'DM Sans',sans-serif",resize:"vertical"}}/>
+              </div>
+              <div style={{gridColumn:"1/3"}}>
+                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Photo URLs (right-click images on Zillow → Copy image address)</label>
+                <div style={{display:"flex",gap:8}}>
+                  <input value={mImgUrl} onChange={e=>setMImgUrl(e.target.value)} placeholder="https://photos.zillowstatic.com/..." style={{flex:1,padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,fontFamily:"'DM Sans',sans-serif"}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addManualImage()}}}/>
+                  <button onClick={addManualImage} style={{padding:"10px 16px",background:C.g200,border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",color:C.g700}}>+ Add</button>
+                </div>
+                {mImgs.length>0&&(
+                  <div style={{display:"flex",gap:4,marginTop:8,overflowX:"auto"}}>
+                    {mImgs.map((img,i)=>(
+                      <div key={i} style={{position:"relative",flexShrink:0}}>
+                        <img src={img} alt="" style={{width:100,height:68,objectFit:"cover",borderRadius:6}} onError={e=>{e.target.style.opacity=0.3}}/>
+                        <button onClick={()=>setMImgs(prev=>prev.filter((_,j)=>j!==i))} style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.6)",color:"white",border:"none",borderRadius:"50%",width:18,height:18,fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                      </div>
                     ))}
                   </div>
-                  <input type="number" placeholder="Frontage (ft)" value={waterFrontage} onChange={e=>setWaterFrontage(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,width:120,fontFamily:"'DM Sans',sans-serif"}}/>
-                  <label style={{display:"flex",alignItems:"center",gap:4,fontSize:13,color:C.g700,cursor:"pointer"}}>
-                    <input type="checkbox" checked={featured} onChange={e=>setFeatured(e.target.checked)}/> Featured
-                  </label>
-                  <div style={{flex:1}}/>
-                  <button onClick={addProperty} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>{I.check} Publish to CoastList</button>
-                </div>
-                {!waterType&&<div style={{fontSize:11,color:C.coral,marginTop:6}}>← Select a water type to publish</div>}
+                )}
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Water type + publish */}
+            <div style={{padding:"16px",borderTop:`1px solid ${C.g200}`,background:C.g100,borderRadius:"0 0 12px 12px",margin:"-24px -24px -24px -24px",marginTop:0,padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:10}}>Classify the waterfront:</div>
+              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:6}}>
+                  {WATER_TYPES.map(wt=>(
+                    <button key={wt} onClick={()=>setWaterType(wt)} style={{padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",border:waterType===wt?`2px solid ${WC[wt].bg}`:`2px solid ${C.g300}`,background:waterType===wt?WC[wt].bg:"white",color:waterType===wt?"white":C.g700,transition:"all 0.2s"}}>{wt}</button>
+                  ))}
+                </div>
+                <input type="number" placeholder="Frontage (ft)" value={waterFrontage} onChange={e=>setWaterFrontage(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,width:120,fontFamily:"'DM Sans',sans-serif"}}/>
+                <label style={{display:"flex",alignItems:"center",gap:4,fontSize:13,color:C.g700,cursor:"pointer"}}><input type="checkbox" checked={featured} onChange={e=>setFeatured(e.target.checked)}/> Featured</label>
+                <div style={{flex:1}}/>
+                <button onClick={addManualProperty} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>{I.check} Publish to CoastList</button>
+              </div>
+              {!waterType&&<div style={{fontSize:11,color:C.coral,marginTop:6}}>← Select a water type to publish</div>}
+            </div>
+          </div>
+        )}
+
+        {/* ─── URL FETCH MODE ─── */}
+        {mode==="url"&&(
+          <div style={{background:C.white,borderRadius:14,padding:24,border:`1px solid ${C.g200}`,marginBottom:20}}>
+            <div style={{fontSize:18,fontWeight:700,color:C.navy,marginBottom:4,fontFamily:"'Playfair Display',serif",display:"flex",alignItems:"center",gap:8}}>{I.link} Fetch from Zillow URL</div>
+            <div style={{fontSize:13,color:C.g500,marginBottom:16}}>Paste a Zillow listing URL and we'll try to pull in the details. Note: this may be blocked by Zillow.</div>
+
+            <div style={{display:"flex",gap:10,marginBottom:12}}>
+              <div style={{flex:1,display:"flex",alignItems:"center",gap:8,padding:"11px 14px",background:C.g100,border:`1.5px solid ${C.g300}`,borderRadius:10}}>
+                {I.link}
+                <input value={zillowUrl} onChange={e=>setZillowUrl(e.target.value)} placeholder="https://www.zillow.com/homedetails/123-Main-St..." style={{border:"none",outline:"none",flex:1,fontSize:14,fontFamily:"'DM Sans',sans-serif",background:"transparent",color:C.g800}} onKeyDown={e=>{if(e.key==="Enter")fetchListing()}}/>
+                {zillowUrl&&<button onClick={()=>{setZillowUrl("");setFetchedData(null);setFetchError("")}} style={{background:"none",border:"none",cursor:"pointer",display:"flex",color:C.g500}}>{I.x}</button>}
+              </div>
+              <button onClick={fetchListing} disabled={fetching} style={{display:"flex",alignItems:"center",gap:6,padding:"11px 24px",background:fetching?C.g400:C.ocean,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:fetching?"wait":"pointer",whiteSpace:"nowrap",minWidth:120,justifyContent:"center"}}>
+                {fetching?<><span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>{I.load}</span> Fetching...</>:<>{I.search} Fetch Listing</>}
+              </button>
+            </div>
+
+            {fetchedData&&(
+              <div style={{border:`2px solid ${C.green}44`,borderRadius:12,overflow:"hidden",marginTop:8}}>
+                <div style={{background:C.greenBg,padding:"10px 16px",fontSize:13,fontWeight:700,color:C.green,display:"flex",alignItems:"center",gap:6}}>{I.check} Listing data fetched!</div>
+                {fetchedData.images&&fetchedData.images.length>0&&(
+                  <div style={{display:"flex",gap:4,padding:12,overflowX:"auto",background:C.g100}}>
+                    {fetchedData.images.map((img,i)=><img key={i} src={img} alt="" style={{width:140,height:95,objectFit:"cover",borderRadius:8,flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>)}
+                  </div>
+                )}
+                <div style={{padding:16}}>
+                  <div style={{fontSize:22,fontWeight:800,color:C.navy,fontFamily:"'Playfair Display',serif"}}>{fetchedData.price?fmtP(fetchedData.price):"Price not found"}</div>
+                  <div style={{fontSize:15,color:C.g700,fontWeight:500,marginTop:4}}>{fetchedData.address}</div>
+                  <div style={{fontSize:13,color:C.g500,marginTop:2}}>{fetchedData.city}{fetchedData.city&&fetchedData.state?", ":""}{fetchedData.state} {fetchedData.zipcode||""}</div>
+                  <div style={{display:"flex",gap:16,marginTop:12,fontSize:13,color:C.g600}}>
+                    {fetchedData.beds>0&&<span>{fetchedData.beds} Beds</span>}
+                    {fetchedData.baths>0&&<span>{fetchedData.baths} Baths</span>}
+                    {fetchedData.sqft>0&&<span>{fetchedData.sqft.toLocaleString()} SqFt</span>}
+                  </div>
+                </div>
+                <div style={{padding:"16px",borderTop:`1px solid ${C.g200}`,background:C.g100}}>
+                  <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                    <div style={{display:"flex",gap:6}}>
+                      {WATER_TYPES.map(wt=><button key={wt} onClick={()=>setWaterType(wt)} style={{padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",border:waterType===wt?`2px solid ${WC[wt].bg}`:`2px solid ${C.g300}`,background:waterType===wt?WC[wt].bg:"white",color:waterType===wt?"white":C.g700}}>{wt}</button>)}
+                    </div>
+                    <input type="number" placeholder="Frontage (ft)" value={waterFrontage} onChange={e=>setWaterFrontage(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,width:120,fontFamily:"'DM Sans',sans-serif"}}/>
+                    <label style={{display:"flex",alignItems:"center",gap:4,fontSize:13,color:C.g700,cursor:"pointer"}}><input type="checkbox" checked={featured} onChange={e=>setFeatured(e.target.checked)}/> Featured</label>
+                    <div style={{flex:1}}/>
+                    <button onClick={addProperty} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>{I.check} Publish</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Properties list */}
         <div style={{fontSize:16,fontWeight:700,color:C.navy,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Published Properties ({properties.length})</div>
