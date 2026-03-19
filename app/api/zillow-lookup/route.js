@@ -183,14 +183,18 @@ export async function POST(request) {
         }, { status: 404 });
       }
 
-      // Take best match
+      // Take best match — search results already have all the data we need
       listing = normalizeSearchResult(results[0]);
 
-      // If we got a zpid, fetch full details
+      // Optionally enrich with full details (but don't overwrite if it fails)
       if (listing.zpid) {
         try {
           const details = await getPropertyDetails(listing.zpid, apiKey);
-          listing = normalizePropertyDetails(details);
+          const enriched = normalizePropertyDetails(details);
+          // Only use enriched data if it has meaningful content
+          if (enriched.address && enriched.price > 0) {
+            listing = enriched;
+          }
         } catch {}
       }
     }
