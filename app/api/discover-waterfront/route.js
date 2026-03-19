@@ -3,6 +3,9 @@
 // VE zones = Coastal High Hazard = properties ON the waterfront
 // Free API, no key required, lat/lng + zip for every insured property
 
+// Increase timeout for slow government API
+export const maxDuration = 30;
+
 const FEMA_API = "https://www.fema.gov/api/open/v2/FimaNfipPolicies";
 
 // States we support

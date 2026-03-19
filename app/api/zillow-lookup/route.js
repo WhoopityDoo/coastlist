@@ -69,27 +69,30 @@ async function getPropertyPhotos(zpid, apiKey) {
 }
 
 // Normalize a search result listing into CoastList format
+// Zillow Scraper API returns: zpid, address, city, state, zipcode, price,
+// bedrooms, bathrooms, living_area_sqft, lot_size_sqft, home_type,
+// listing_status, days_on_zillow, image_url, detail_url
 function normalizeSearchResult(item) {
   return {
     zpid: String(item.zpid || item.id || ""),
     address: item.address || item.streetAddress || "",
     city: item.city || "",
     state: item.state || "",
-    zipcode: item.zipCode || item.zipcode || item.zip || "",
+    zipcode: item.zipcode || item.zipCode || item.zip || "",
     price: item.price || item.unformattedPrice || 0,
-    beds: item.beds || item.bedrooms || 0,
-    baths: item.baths || item.bathrooms || 0,
-    sqft: item.sqft || item.livingArea || item.area || 0,
-    lotAcres: item.lotSize ? parseFloat((item.lotSize / 43560).toFixed(2)) : (item.lotAreaValue || 0),
-    yearBuilt: item.yearBuilt || 0,
+    beds: item.bedrooms || item.beds || 0,
+    baths: item.bathrooms || item.baths || 0,
+    sqft: item.living_area_sqft || item.sqft || item.livingArea || 0,
+    lotAcres: item.lot_size_sqft ? parseFloat((item.lot_size_sqft / 43560).toFixed(2)) : 0,
+    yearBuilt: item.yearBuilt || item.year_built || 0,
     description: (item.description || "").substring(0, 1000),
-    images: [item.imgSrc || item.image || item.photo || ""].filter(Boolean),
+    images: [item.image_url || item.imgSrc || item.image || ""].filter(Boolean),
     latitude: item.latitude || item.lat || 0,
-    longitude: item.longitude || item.lng || item.long || 0,
-    zillowUrl: item.detailUrl || item.url || (item.zpid ? `https://www.zillow.com/homedetails/${item.zpid}_zpid/` : ""),
-    homeStatus: item.listingStatus || item.homeStatus || item.status || "",
-    homeType: item.homeType || item.propertyType || "",
-    daysOnZillow: item.daysOnZillow || 0,
+    longitude: item.longitude || item.lng || 0,
+    zillowUrl: item.detail_url || item.detailUrl || (item.zpid ? `https://www.zillow.com/homedetails/${item.zpid}_zpid/` : ""),
+    homeStatus: item.listing_status || item.listingStatus || "",
+    homeType: item.home_type || item.homeType || "",
+    daysOnZillow: item.days_on_zillow || item.daysOnZillow || 0,
   };
 }
 
@@ -160,7 +163,7 @@ export async function POST(request) {
       } catch {}
     } else {
       const searchData = await searchListings(address, apiKey);
-      const results = searchData?.listings || searchData?.results || (Array.isArray(searchData) ? searchData : []);
+      const results = searchData?.data?.listings || searchData?.listings || searchData?.results || (Array.isArray(searchData) ? searchData : []);
 
       if (results.length === 0) {
         return Response.json({ success: false, error: "No listings found for this location", searchedFor: address }, { status: 404 });
@@ -218,7 +221,7 @@ export async function PUT(request) {
 
       try {
         const searchData = await searchListings(addr, apiKey);
-        const listings = searchData?.listings || searchData?.results || (Array.isArray(searchData) ? searchData : []);
+        const listings = searchData?.data?.listings || searchData?.listings || searchData?.results || (Array.isArray(searchData) ? searchData : []);
 
         if (listings.length > 0) {
           const listing = normalizeSearchResult(listings[0]);
