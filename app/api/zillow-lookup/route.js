@@ -1,167 +1,201 @@
 // app/api/zillow-lookup/route.js
-// Looks up an address on Zillow via the RapidAPI Zillow Scraper API
-// Returns a Zillow listing URL and property data if found
+// Looks up properties on Zillow via the "Zillow Scraper API" by PullAPI on RapidAPI
+// Host: zillow-scraper-api.p.rapidapi.com
+//
+// Endpoints used:
+//   GET /zillow/search?location=...  → search by city/zip/address
+//   GET /zillow/property/{zpid}      → full property details by zpid
+//   GET /zillow/photos/{zpid}        → property photos by zpid
 //
 // Requires: RAPIDAPI_KEY environment variable set in Vercel
 
-const RAPIDAPI_HOST = process.env.ZILLOW_RAPIDAPI_HOST || "zillow56.p.rapidapi.com";
+const API_HOST = "zillow-scraper-api.p.rapidapi.com";
+const BASE_URL = `https://${API_HOST}`;
 
-async function searchZillow(address, rapidApiKey) {
-  // Try the search endpoint to find the property by address
-  const searchUrl = `https://${RAPIDAPI_HOST}/search?location=${encodeURIComponent(address)}`;
+function getApiKey(requestBody) {
+  return requestBody?.rapidApiKey || process.env.RAPIDAPI_KEY;
+}
 
-  const res = await fetch(searchUrl, {
-    headers: {
-      "X-RapidAPI-Key": rapidApiKey,
-      "X-RapidAPI-Host": RAPIDAPI_HOST,
-    },
+function rapidHeaders(apiKey) {
+  return {
+    "Content-Type": "application/json",
+    "X-RapidAPI-Host": API_HOST,
+    "X-RapidAPI-Key": apiKey,
+  };
+}
+
+// Search listings by location (city, zip, or address)
+async function searchListings(location, apiKey) {
+  const params = new URLSearchParams({
+    location,
+    listing_type: "for_sale",
+    home_type: "house",
+    page: "1",
+  });
+
+  const res = await fetch(`${BASE_URL}/zillow/search?${params}`, {
+    headers: rapidHeaders(apiKey),
   });
 
   if (!res.ok) {
-    throw new Error(`Zillow search returned ${res.status}: ${await res.text()}`);
+    const text = await res.text();
+    throw new Error(`Search returned ${res.status}: ${text.substring(0, 200)}`);
   }
 
   return res.json();
 }
 
-async function getPropertyByZpid(zpid, rapidApiKey) {
-  const url = `https://${RAPIDAPI_HOST}/property?zpid=${zpid}`;
-
-  const res = await fetch(url, {
-    headers: {
-      "X-RapidAPI-Key": rapidApiKey,
-      "X-RapidAPI-Host": RAPIDAPI_HOST,
-    },
+// Get full property details by zpid
+async function getPropertyDetails(zpid, apiKey) {
+  const res = await fetch(`${BASE_URL}/zillow/property/${zpid}`, {
+    headers: rapidHeaders(apiKey),
   });
 
   if (!res.ok) {
-    throw new Error(`Zillow property lookup returned ${res.status}`);
+    throw new Error(`Property details returned ${res.status}`);
   }
 
   return res.json();
 }
 
-function extractListingData(zillowData) {
-  // Normalize Zillow response into CoastList format
-  // Different Zillow APIs return slightly different shapes
-  const d = zillowData || {};
+// Get property photos by zpid
+async function getPropertyPhotos(zpid, apiKey) {
+  const res = await fetch(`${BASE_URL}/zillow/photos/${zpid}`, {
+    headers: rapidHeaders(apiKey),
+  });
+
+  if (!res.ok) return { photos: [] };
+  return res.json();
+}
+
+// Normalize a search result listing into CoastList format
+function normalizeSearchResult(item) {
+  return {
+    zpid: String(item.zpid || item.id || ""),
+    address: item.address || item.streetAddress || "",
+    city: item.city || "",
+    state: item.state || "",
+    zipcode: item.zipCode || item.zipcode || item.zip || "",
+    price: item.price || item.unformattedPrice || 0,
+    beds: item.beds || item.bedrooms || 0,
+    baths: item.baths || item.bathrooms || 0,
+    sqft: item.sqft || item.livingArea || item.area || 0,
+    lotAcres: item.lotSize ? parseFloat((item.lotSize / 43560).toFixed(2)) : (item.lotAreaValue || 0),
+    yearBuilt: item.yearBuilt || 0,
+    description: (item.description || "").substring(0, 1000),
+    images: [item.imgSrc || item.image || item.photo || ""].filter(Boolean),
+    latitude: item.latitude || item.lat || 0,
+    longitude: item.longitude || item.lng || item.long || 0,
+    zillowUrl: item.detailUrl || item.url || (item.zpid ? `https://www.zillow.com/homedetails/${item.zpid}_zpid/` : ""),
+    homeStatus: item.listingStatus || item.homeStatus || item.status || "",
+    homeType: item.homeType || item.propertyType || "",
+    daysOnZillow: item.daysOnZillow || 0,
+  };
+}
+
+// Normalize full property details into CoastList format
+function normalizePropertyDetails(d) {
+  const photos = (d.photos || d.images || d.responsivePhotos || [])
+    .map(p => {
+      if (typeof p === "string") return p;
+      if (p?.mixedSources?.jpeg) return p.mixedSources.jpeg.sort((a, b) => (b.width || 0) - (a.width || 0))[0]?.url || "";
+      return p?.url || p?.href || p?.src || "";
+    })
+    .filter(Boolean)
+    .slice(0, 10);
 
   return {
+    zpid: String(d.zpid || ""),
     address: d.streetAddress || d.address || "",
     city: d.city || "",
     state: d.state || "",
     zipcode: d.zipcode || d.zip || "",
-    price: d.price || d.zestimate || d.rentZestimate || 0,
+    price: d.price || d.zestimate || 0,
     beds: d.bedrooms || d.beds || 0,
     baths: d.bathrooms || d.baths || 0,
     sqft: d.livingArea || d.livingAreaValue || d.sqft || 0,
     lotAcres: d.lotSize ? parseFloat((d.lotSize / 43560).toFixed(2)) : (d.lotAreaValue || 0),
     yearBuilt: d.yearBuilt || 0,
     description: (d.description || d.homeDescription || "").substring(0, 1000),
-    images: (d.photos || d.images || d.responsivePhotos || [])
-      .map(p => typeof p === "string" ? p : (p?.mixedSources?.jpeg?.[0]?.url || p?.url || p?.href || ""))
-      .filter(Boolean)
-      .slice(0, 8),
-    zpid: String(d.zpid || ""),
-    latitude: d.latitude || d.lat || 0,
-    longitude: d.longitude || d.lng || d.long || 0,
-    zillowUrl: d.url || (d.zpid ? `https://www.zillow.com/homedetails/${d.zpid}_zpid/` : ""),
-    homeStatus: d.homeStatus || d.status || "",
+    images: photos,
+    latitude: d.latitude || 0,
+    longitude: d.longitude || 0,
+    zillowUrl: d.url || `https://www.zillow.com/homedetails/${d.zpid}_zpid/`,
+    homeStatus: d.homeStatus || "",
     homeType: d.homeType || d.propertyType || "",
+    daysOnZillow: d.daysOnZillow || 0,
+    features: (d.facts || d.features || []).map(f => typeof f === "string" ? f : f?.factLabel || f?.name || "").filter(Boolean).slice(0, 10),
   };
 }
 
+// ─── POST: Single address/zpid lookup ───
 export async function POST(request) {
   try {
     const body = await request.json();
     const { address, zpid, rapidApiKey } = body;
 
-    // API key from request body OR environment variable
-    const apiKey = rapidApiKey || process.env.RAPIDAPI_KEY;
+    const apiKey = getApiKey(body);
     if (!apiKey) {
       return Response.json({
-        error: "No RapidAPI key provided. Either pass 'rapidApiKey' in the request body or set RAPIDAPI_KEY in your Vercel environment variables.",
-        setup_instructions: {
-          step1: "Go to rapidapi.com and sign up (free)",
-          step2: "Subscribe to a Zillow scraper API (search 'zillow' on RapidAPI)",
-          step3: "Copy your API key from the RapidAPI dashboard",
-          step4: "In Vercel: Settings → Environment Variables → Add RAPIDAPI_KEY",
-          step5: "Optionally set ZILLOW_RAPIDAPI_HOST to match your specific API's host",
-        },
+        error: "No RapidAPI key. Set RAPIDAPI_KEY in Vercel env vars or pass 'rapidApiKey' in body.",
+        setup: "Subscribe to 'Zillow Scraper API' by PullAPI on RapidAPI (free tier available), then add RAPIDAPI_KEY to Vercel Settings → Environment Variables.",
       }, { status: 400 });
     }
 
     if (!address && !zpid) {
-      return Response.json({ error: "Provide 'address' (full street address) or 'zpid' (Zillow property ID)" }, { status: 400 });
+      return Response.json({ error: "Provide 'address' (city/zip/address) or 'zpid' (Zillow property ID)" }, { status: 400 });
     }
 
     let listing;
 
     if (zpid) {
-      // Direct lookup by zpid
-      const data = await getPropertyByZpid(zpid, apiKey);
-      listing = extractListingData(data);
+      const data = await getPropertyDetails(zpid, apiKey);
+      listing = normalizePropertyDetails(data);
+      // Also get photos
+      try {
+        const photoData = await getPropertyPhotos(zpid, apiKey);
+        if (photoData.photos?.length) {
+          listing.images = photoData.photos.map(p => p.url || p.src || p).filter(Boolean).slice(0, 10);
+        }
+      } catch {}
     } else {
-      // Search by address
-      const searchResults = await searchZillow(address, apiKey);
+      const searchData = await searchListings(address, apiKey);
+      const results = searchData?.listings || searchData?.results || (Array.isArray(searchData) ? searchData : []);
 
-      // Handle different response formats
-      let results = [];
-      if (Array.isArray(searchResults)) {
-        results = searchResults;
-      } else if (searchResults?.results) {
-        results = searchResults.results;
-      } else if (searchResults?.props) {
-        results = searchResults.props;
-      } else if (searchResults?.searchResults?.listResults) {
-        results = searchResults.searchResults.listResults;
-      } else if (searchResults?.zpid) {
-        // Direct match
-        listing = extractListingData(searchResults);
+      if (results.length === 0) {
+        return Response.json({ success: false, error: "No listings found for this location", searchedFor: address }, { status: 404 });
       }
 
-      if (!listing && results.length > 0) {
-        // Take the first result
-        const firstResult = results[0];
-        if (firstResult.zpid) {
-          // Get full details
-          try {
-            const fullData = await getPropertyByZpid(firstResult.zpid, apiKey);
-            listing = extractListingData(fullData);
-          } catch {
-            listing = extractListingData(firstResult);
-          }
-        } else {
-          listing = extractListingData(firstResult);
-        }
+      // Take best match
+      listing = normalizeSearchResult(results[0]);
+
+      // If we got a zpid, fetch full details
+      if (listing.zpid) {
+        try {
+          const details = await getPropertyDetails(listing.zpid, apiKey);
+          listing = normalizePropertyDetails(details);
+        } catch {}
       }
     }
 
     if (!listing || (!listing.address && !listing.zpid)) {
-      return Response.json({
-        success: false,
-        error: "No listing found for this address on Zillow",
-        searchedFor: address || `zpid:${zpid}`,
-      }, { status: 404 });
+      return Response.json({ success: false, error: "No listing found", searchedFor: address || `zpid:${zpid}` }, { status: 404 });
     }
 
-    return Response.json({
-      success: true,
-      listing,
-    });
+    return Response.json({ success: true, listing });
 
   } catch (error) {
     return Response.json({ error: `Zillow lookup failed: ${error.message}` }, { status: 500 });
   }
 }
 
-// Batch lookup: multiple addresses at once
+// ─── PUT: Batch lookup (multiple addresses) ───
 export async function PUT(request) {
   try {
     const body = await request.json();
     const { addresses, rapidApiKey } = body;
 
-    const apiKey = rapidApiKey || process.env.RAPIDAPI_KEY;
+    const apiKey = getApiKey(body);
     if (!apiKey) {
       return Response.json({ error: "No RapidAPI key. See GET /api/zillow-lookup for setup." }, { status: 400 });
     }
@@ -170,8 +204,8 @@ export async function PUT(request) {
       return Response.json({ error: "Provide 'addresses' array of { address, waterType } objects" }, { status: 400 });
     }
 
-    if (addresses.length > 20) {
-      return Response.json({ error: "Max 20 addresses per batch" }, { status: 400 });
+    if (addresses.length > 15) {
+      return Response.json({ error: "Max 15 per batch on free tier to stay within rate limits" }, { status: 400 });
     }
 
     const results = [];
@@ -183,40 +217,32 @@ export async function PUT(request) {
       const waterType = entry.waterType || "Ocean";
 
       try {
-        const searchResults = await searchZillow(addr, apiKey);
-        let match = null;
+        const searchData = await searchListings(addr, apiKey);
+        const listings = searchData?.listings || searchData?.results || (Array.isArray(searchData) ? searchData : []);
 
-        if (Array.isArray(searchResults) && searchResults.length > 0) {
-          match = searchResults[0];
-        } else if (searchResults?.results?.length > 0) {
-          match = searchResults.results[0];
-        } else if (searchResults?.zpid) {
-          match = searchResults;
-        }
-
-        if (match) {
-          const listing = extractListingData(match);
+        if (listings.length > 0) {
+          const listing = normalizeSearchResult(listings[0]);
           results.push({
             ...listing,
             id: `CL-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             waterType,
             waterFrontage: 0,
             featured: false,
-            daysOnMarket: 1,
+            daysOnMarket: listing.daysOnZillow || 1,
             image: listing.images?.[0] || "",
             addedAt: new Date().toISOString(),
             source: "discovery-agent",
           });
         } else {
-          errors.push({ address: addr, error: "Not found on Zillow" });
+          errors.push({ address: addr, error: "No listings found" });
         }
       } catch (e) {
         errors.push({ address: addr, error: e.message });
       }
 
-      // Rate limit: wait between requests
+      // Rate limit: 1.5s between requests
       if (i < addresses.length - 1) {
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 1500));
       }
     }
 
@@ -233,32 +259,23 @@ export async function PUT(request) {
   }
 }
 
+// ─── GET: Documentation ───
 export async function GET() {
   return Response.json({
     endpoint: "/api/zillow-lookup",
+    api: "Zillow Scraper API by PullAPI (RapidAPI)",
+    host: API_HOST,
     methods: {
-      POST: "Look up a single address or zpid on Zillow",
-      PUT: "Batch look up multiple addresses on Zillow",
+      POST: "Look up a single address or zpid",
+      PUT: "Batch look up multiple addresses (max 15)",
     },
-    requires: "RapidAPI key (set as RAPIDAPI_KEY env var or pass in request body)",
-    setup: {
-      step1: "Sign up at rapidapi.com (free tier available)",
-      step2: "Subscribe to a Zillow API (search 'zillow' in the marketplace)",
-      step3: "Note your API key and the API host (e.g. zillow56.p.rapidapi.com)",
-      step4: "In Vercel dashboard: Settings → Environment Variables → add RAPIDAPI_KEY and optionally ZILLOW_RAPIDAPI_HOST",
-    },
-    single_example: {
-      method: "POST",
-      body: { address: "123 Ocean Drive, Miami Beach, FL 33139" },
-    },
-    batch_example: {
-      method: "PUT",
-      body: {
-        addresses: [
-          { address: "123 Ocean Drive, Miami Beach, FL", waterType: "Ocean" },
-          { address: "456 Lake Rd, Palm Beach, FL", waterType: "Lake" },
-        ],
-      },
+    requires: "RAPIDAPI_KEY env var (subscribe at rapidapi.com/pullapi-pullapi-default/api/zillow-scraper-api)",
+    post_example: { address: "33037" },
+    put_example: {
+      addresses: [
+        { address: "34957", waterType: "Ocean" },
+        { address: "Key Largo, FL", waterType: "Ocean" },
+      ],
     },
   });
 }
