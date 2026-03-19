@@ -14,23 +14,58 @@ export async function POST(request) {
     }
 
     // Fetch the Zillow page server-side (no CORS issues)
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
+    // Try multiple approaches if Zillow blocks us
+    let html = "";
+    let fetchSuccess = false;
 
-    if (!res.ok) {
+    // Approach 1: Direct fetch with full browser-like headers
+    const headerSets = [
+      {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"macOS"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+      },
+      {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      },
+      {
+        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+        "Accept": "text/html",
+      },
+    ];
+
+    for (const headers of headerSets) {
+      try {
+        const res = await fetch(url, { headers, redirect: "follow" });
+        if (res.ok) {
+          html = await res.text();
+          fetchSuccess = true;
+          break;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    if (!fetchSuccess || !html) {
       return Response.json(
-        { error: `Failed to fetch listing (status ${res.status})` },
+        { error: "Zillow is blocking server-side requests. Try using the RapidAPI Zillow Scraper instead, or paste the listing data manually." },
         { status: 502 }
       );
     }
-
-    const html = await res.text();
 
     // ─── Parse the HTML for property data ───
 
