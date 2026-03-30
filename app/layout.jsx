@@ -1,9 +1,9 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'CoastList — Coastal Living, Curated',
-  description: 'Handpicked coastal furniture and decor for your life by the water. Browse curated collections from top retailers.',
-  keywords: 'coastal furniture, beach house decor, coastal living, Hamptons style, modern coastal, outdoor furniture',
+  title: 'CoastList — Furniture Marketplace',
+  description: 'Discover curated furniture from top brands — all in one place. Browse by room, style, or brand and find the perfect piece for your home.',
+  keywords: 'furniture marketplace, home furniture, mid-century modern, scandinavian, industrial, living room, bedroom, dining room',
 };
 
 export default function RootLayout({ children }) {
