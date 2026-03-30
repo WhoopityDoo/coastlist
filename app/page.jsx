@@ -1,586 +1,759 @@
-"use client";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+'use client';
 
-/*
-╔══════════════════════════════════════════════════════════════╗
-║  COASTLIST.COM v4 — Auto-Fetch from Zillow URL              ║
-║                                                              ║
-║  PUBLIC:  coastlist.com       → Browse properties            ║
-║  ADMIN:   coastlist.com?admin=true → Paste Zillow URL,      ║
-║           auto-fetch all data, select water type, publish    ║
-╚══════════════════════════════════════════════════════════════╝
-*/
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
-const C={navy:"#1B2B4B",navyLight:"#2A3F6B",sand:"#F5EFE6",sandDark:"#E8DFD0",sandLight:"#FAF7F2",ocean:"#2E6B8A",oceanLight:"#4A9CB8",oceanPale:"#E8F4F8",seafoam:"#7CC5B8",coral:"#E87461",gold:"#D4A853",white:"#FFFFFF",g100:"#F8F9FA",g200:"#E9ECEF",g300:"#DEE2E6",g400:"#CED4DA",g500:"#ADB5BD",g600:"#6C757D",g700:"#495057",g800:"#343A40",green:"#2D9F6F",greenBg:"#E6F7EF",redBg:"#FEF0EE"};
+const SAMPLE_PRODUCTS = [
+  {
+    id: 'CL-001', name: 'Malibu Slipcovered Sofa', brand: 'Pottery Barn', price: 1299, salePrice: null, department: 'Furniture',
+    description: 'Relaxed coastal sofa with machine-washable slipcover in natural linen. Deep seats, soft cushions, and a low profile make this the perfect beach house centerpiece.',
+    images: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80','https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=800&q=80'],
+    affiliateUrl: 'https://www.potterybarn.com/products/malibu-sofa/', retailer: 'Pottery Barn', room: 'Living Room', style: 'Hamptons Classic', type: 'Sofas & Sectionals',
+    dimensions: '84"W x 40"D x 33"H', material: 'Linen Slipcover, Kiln-Dried Hardwood Frame', colors: ['Natural Linen','Coastal Blue','Stone'], featured: true, trending: true, new: true, dateAdded: '2026-03-24',
+  },
+  {
+    id: 'CL-002', name: 'Driftwood Round Coffee Table', brand: 'Serena & Lily', price: 898, salePrice: 748, department: 'Furniture',
+    description: 'Hand-carved from sustainably sourced mango wood, this round coffee table brings organic texture and coastal warmth to any living room.',
+    images: ['https://images.unsplash.com/photo-1532372576444-dda954194ad0?w=800&q=80','https://images.unsplash.com/photo-1611486212557-88be5ff027dc?w=800&q=80'],
+    affiliateUrl: 'https://www.serenaandlily.com/', retailer: 'Serena & Lily', room: 'Living Room', style: 'Modern Coastal', type: 'Coffee & Side Tables',
+    dimensions: '42" diameter x 16"H', material: 'Mango Wood, Natural Finish', colors: ['Natural','Whitewash'], featured: true, trending: false, new: true, dateAdded: '2026-03-23',
+  },
+  {
+    id: 'CL-003', name: 'Catalina Rattan Dining Chair', brand: 'West Elm', price: 449, salePrice: null, department: 'Furniture',
+    description: 'Woven natural rattan seat on a solid oak frame. The gentle curves and organic weave bring the relaxed feel of a seaside cafe to your dining room.',
+    images: ['https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=800&q=80','https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=800&q=80'],
+    affiliateUrl: 'https://www.westelm.com/', retailer: 'West Elm', room: 'Dining Room', style: 'Mediterranean Coast', type: 'Dining Tables & Chairs',
+    dimensions: '20"W x 22"D x 34"H', material: 'Natural Rattan, Solid Oak Frame', colors: ['Natural','Black Frame'], featured: false, trending: true, new: false, dateAdded: '2026-03-20',
+  },
+  {
+    id: 'CL-004', name: 'Shoreline Teak Outdoor Sofa', brand: 'Crate & Barrel', price: 1899, salePrice: 1599, department: 'Furniture',
+    description: 'Grade-A teak frame with all-weather Sunbrella cushions in soft cloud white. Built to withstand the elements while looking effortlessly elegant on any patio.',
+    images: ['https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80','https://images.unsplash.com/photo-1615529151169-7b1ff50dc7f2?w=800&q=80'],
+    affiliateUrl: 'https://www.crateandbarrel.com/', retailer: 'Crate & Barrel', room: 'Outdoor / Patio', style: 'Modern Coastal', type: 'Outdoor Seating',
+    dimensions: '78"W x 34"D x 30"H', material: 'Grade-A Teak, Sunbrella Fabric', colors: ['Cloud White','Coastal Stripe','Fog'], featured: true, trending: true, new: false, dateAdded: '2026-03-18',
+  },
+  {
+    id: 'CL-005', name: 'Harbor Cane Four-Poster Bed', brand: 'Serena & Lily', price: 2498, salePrice: null, department: 'Furniture',
+    description: 'A modern take on the four-poster with lightweight cane paneling and a warm whitewash finish. The airy silhouette is perfect for coastal bedrooms.',
+    images: ['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&q=80','https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&q=80'],
+    affiliateUrl: 'https://www.serenaandlily.com/', retailer: 'Serena & Lily', room: 'Bedroom', style: 'Hamptons Classic', type: 'Beds & Headboards',
+    dimensions: 'Queen: 65"W x 87"D x 84"H', material: 'Mahogany, Natural Cane', colors: ['Whitewash','Natural'], featured: true, trending: false, new: true, dateAdded: '2026-03-22',
+  },
+  {
+    id: 'CL-006', name: 'Woven Seagrass Bench', brand: 'Pottery Barn', price: 549, salePrice: 449, department: 'Furniture',
+    description: 'A hand-woven seagrass bench on a solid hardwood frame. Perfect for the end of a bed or a welcoming entryway piece.',
+    images: ['https://images.unsplash.com/photo-1594026112284-02bb6f3352fe?w=800&q=80','https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80'],
+    affiliateUrl: 'https://www.potterybarn.com/', retailer: 'Pottery Barn', room: 'Entryway', style: 'Rustic Beach', type: 'Benches & Ottomans',
+    dimensions: '52"W x 16"D x 18"H', material: 'Seagrass, Solid Mango Wood', colors: ['Natural'], featured: false, trending: true, new: false, dateAdded: '2026-03-15',
+  },
+  {
+    id: 'CL-007', name: 'Pacific Linen Accent Chair', brand: 'West Elm', price: 799, salePrice: null, department: 'Furniture',
+    description: 'Mid-century meets coastal in this linen-upholstered accent chair with solid ash legs in a driftwood finish.',
+    images: ['https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=800&q=80','https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=800&q=80'],
+    affiliateUrl: 'https://www.westelm.com/', retailer: 'West Elm', room: 'Living Room', style: 'Modern Coastal', type: 'Accent Chairs',
+    dimensions: '30"W x 33"D x 32"H', material: 'Linen Blend, Solid Ash', colors: ['Oatmeal','Indigo','Seafoam'], featured: false, trending: false, new: true, dateAdded: '2026-03-21',
+  },
+  {
+    id: 'CL-008', name: 'Tide Reclaimed Wood Dining Table', brand: 'Wayfair', price: 1249, salePrice: null, department: 'Furniture',
+    description: 'A stunning 72-inch dining table crafted from reclaimed pine with a weathered white finish and turned legs. Seats 6-8 comfortably.',
+    images: ['https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&q=80','https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=800&q=80'],
+    affiliateUrl: 'https://www.wayfair.com/', retailer: 'Wayfair', room: 'Dining Room', style: 'Rustic Beach', type: 'Dining Tables & Chairs',
+    dimensions: '72"W x 38"D x 30"H', material: 'Reclaimed Pine', colors: ['Weathered White','Driftwood'], featured: true, trending: false, new: false, dateAdded: '2026-03-10',
+  },
+  {
+    id: 'CL-009', name: 'Laguna Rope Bar Cart', brand: 'Crate & Barrel', price: 599, salePrice: null, department: 'Furniture',
+    description: 'Brass-finished iron frame wrapped in natural rope detail. Two tempered glass shelves provide ample entertaining space.',
+    images: ['https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80','https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80'],
+    affiliateUrl: 'https://www.crateandbarrel.com/', retailer: 'Crate & Barrel', room: 'Living Room', style: 'Nautical', type: 'Bar Carts & Consoles',
+    dimensions: '30"W x 18"D x 33"H', material: 'Iron, Natural Rope, Tempered Glass', colors: ['Brass/Natural'], featured: false, trending: true, new: true, dateAdded: '2026-03-19',
+  },
+  {
+    id: 'CL-010', name: 'Sunset Bamboo Nightstand', brand: 'Target', price: 189, salePrice: 159, department: 'Furniture',
+    description: 'Sustainable bamboo nightstand with a single drawer and open shelf. Clean lines and a light natural finish for a breezy bedroom look.',
+    images: ['https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?w=800&q=80','https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=800&q=80'],
+    affiliateUrl: 'https://www.target.com/', retailer: 'Target', room: 'Bedroom', style: 'Tropical Resort', type: 'Dressers & Nightstands',
+    dimensions: '22"W x 16"D x 24"H', material: 'Sustainable Bamboo', colors: ['Natural','White'], featured: false, trending: false, new: false, dateAdded: '2026-03-12',
+  },
+  {
+    id: 'CL-011', name: 'Oceanview Open Bookshelf', brand: 'Wayfair', price: 679, salePrice: null, department: 'Furniture',
+    description: 'A tall, airy bookshelf in whitewashed oak with five shelves. Perfect for displaying coastal treasures and books.',
+    images: ['https://images.unsplash.com/photo-1594620302200-9a762244a156?w=800&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'],
+    affiliateUrl: 'https://www.wayfair.com/', retailer: 'Wayfair', room: 'Home Office', style: 'Hamptons Classic', type: 'Shelving & Storage',
+    dimensions: '36"W x 14"D x 72"H', material: 'Oak Veneer, Solid Pine Frame', colors: ['Whitewash','Natural Oak'], featured: false, trending: false, new: true, dateAdded: '2026-03-17',
+  },
+  {
+    id: 'CL-012', name: 'Breezy Linen Slipper Chair', brand: 'Serena & Lily', price: 698, salePrice: null, department: 'Furniture',
+    description: 'An armless slipper chair in washed linen. The low profile and soft cushion make it a versatile addition to bedrooms, living rooms, or reading nooks.',
+    images: ['https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80','https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80'],
+    affiliateUrl: 'https://www.serenaandlily.com/', retailer: 'Serena & Lily', room: 'Bedroom', style: 'Mediterranean Coast', type: 'Accent Chairs',
+    dimensions: '26"W x 30"D x 31"H', material: 'Washed Belgian Linen, Birch Frame', colors: ['Fog','Sand','White'], featured: false, trending: false, new: false, dateAdded: '2026-03-14',
+  },
+];
 
-const WATER_TYPES=["Ocean","River","Lake","Pond"];
-const WC={Ocean:{bg:"#1B4B7A",t:"#fff"},River:{bg:"#2E7D6B",t:"#fff"},Lake:{bg:"#3A6EA5",t:"#fff"},Pond:{bg:"#5B8C7A",t:"#fff"}};
+const ROOMS = ['Living Room','Bedroom','Dining Room','Outdoor / Patio','Bathroom','Entryway','Home Office','Kitchen'];
+const STYLES = ['Hamptons Classic','Mediterranean Coast','Tropical Resort','Modern Coastal','Rustic Beach','Nautical'];
+const TYPES = ['Sofas & Sectionals','Accent Chairs','Coffee & Side Tables','Dining Tables & Chairs','Beds & Headboards','Dressers & Nightstands','Outdoor Seating','Benches & Ottomans','Shelving & Storage','Bar Carts & Consoles'];
+const DEPARTMENTS = ['Furniture'];
+const RETAILERS = ['Pottery Barn','Serena & Lily','West Elm','Crate & Barrel','Wayfair','Target','Amazon'];
 
-const fmtP=(p)=>`$${p.toLocaleString()}`;
-
-// Icons
-const I={
-  bed:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>,
-  bath:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h16a1 1 0 0 1 1 1v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1z"/><path d="M6 12V5a2 2 0 0 1 2-2h3v2.25"/></svg>,
-  area:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>,
-  water:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>,
-  heart:(f)=><svg width="17" height="17" viewBox="0 0 24 24" fill={f?C.coral:"none"} stroke={f?C.coral:"currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
-  star:<svg width="13" height="13" viewBox="0 0 24 24" fill={C.gold} stroke={C.gold} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-  anchor:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>,
-  search:<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  x:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-  chev:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
-  pin:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-  back:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
-  share:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
-  cal:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  ruler:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/></svg>,
-  chevL:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>,
-  chevR:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>,
-  check:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  plus:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  link:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
-  load:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>,
-  trash:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-  download:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-  upload:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+const Icons = {
+  search: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>),
+  heart: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>),
+  heartFill: (<svg width="18" height="18" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>),
+  arrow: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>),
+  chevronLeft: (<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>),
+  chevronRight: (<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>),
+  externalLink: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>),
+  filter: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>),
+  x: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
+  plus: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>),
+  trash: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>),
+  edit: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>),
+  download: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>),
+  upload: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>),
+  menu: (<svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>),
 };
 
-// ─── Property Card ───
-function Card({p,onSelect,favs,toggleFav}){
-  const isFav=favs.has(p.id);const wc=WC[p.waterType]||WC.Ocean;
-  return(<div onClick={()=>onSelect(p)} style={{background:C.white,borderRadius:13,overflow:"hidden",boxShadow:"0 2px 14px rgba(27,43,75,0.07)",cursor:"pointer",transition:"all 0.3s",border:`1px solid ${C.g200}`}}
-    onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 10px 28px rgba(27,43,75,0.13)"}}
-    onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 2px 14px rgba(27,43,75,0.07)"}}>
-    <div style={{position:"relative",height:190,background:C.g200,overflow:"hidden"}}>
-      <img src={(p.images&&p.images[0])||p.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy" onError={e=>{e.target.src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=400&fit=crop"}}/>
-      <div style={{position:"absolute",top:9,left:9,background:wc.bg,color:wc.t,padding:"3px 9px",borderRadius:5,fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:3}}>{I.water} {p.waterType}</div>
-      <button onClick={e=>{e.stopPropagation();toggleFav(p.id)}} style={{position:"absolute",top:9,right:9,background:"rgba(255,255,255,0.9)",border:"none",borderRadius:"50%",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>{I.heart(isFav)}</button>
-      {p.featured&&<div style={{position:"absolute",bottom:9,left:9,background:"rgba(212,168,83,0.95)",color:C.white,padding:"2px 7px",borderRadius:4,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",gap:3}}>{I.star} FEATURED</div>}
-    </div>
-    <div style={{padding:"13px 15px",display:"flex",flexDirection:"column",gap:5}}>
-      <div style={{fontSize:20,fontWeight:800,color:C.navy,fontFamily:"'Playfair Display',serif"}}>{fmtP(p.price)}</div>
-      <div style={{display:"flex",gap:12,fontSize:12,color:C.g600}}>
-        {p.beds>0&&<span style={{display:"flex",alignItems:"center",gap:3}}>{I.bed} {p.beds}</span>}
-        {p.baths>0&&<span style={{display:"flex",alignItems:"center",gap:3}}>{I.bath} {p.baths}</span>}
-        {p.sqft>0&&<span style={{display:"flex",alignItems:"center",gap:3}}>{I.area} {p.sqft?.toLocaleString()}</span>}
-      </div>
-      <div style={{fontSize:13,color:C.g700,fontWeight:500}}>{p.address}</div>
-      <div style={{fontSize:11,color:C.g500}}>{p.city}{p.city&&p.state?", ":""}{p.state}</div>
-      {p.waterFrontage>0&&<div style={{fontSize:11,color:C.ocean,display:"flex",alignItems:"center",gap:3,fontWeight:500}}>{I.anchor} {p.waterFrontage}ft waterfront</div>}
-    </div>
-  </div>);
-}
+function Logo({ size = 'default' }) {
+  const s = size === 'large' ? { fontSize: '2rem', sub: '0.7rem' } : { fontSize: '1.4rem', sub: '0.55rem' };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+      <svg width={size === 'large' ? 44 : 32} height={size === 'large' ? 44 : 32} viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="23" fill="var(--navy)" stroke="var(--sea-glass)" strokeWidth="2"/>
+        <path d="M6 28 Q 14 20, 24 28 T 42 28" stroke="var(--sea-glass)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+        <path d="M6 32 Q 14 24, 24 32 T 42 32" stroke="rgba(124,197,184,0.4)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        <path d="M24 10 L25.5 16 L22.5 16Z M24 10 L28 15 L26 16.5Z M24 10 L20 15 L22 16.5Z M24 10 L22 17 L26 17Z M24 10 L27
 
-// ─── Full Page Property Detail ───
-function PropertyPage({p,onBack,favs,toggleFav,allProperties,onSelect}){
-  const[imgIdx,setImgIdx]=useState(0);
-  const isFav=favs.has(p.id);const wc=WC[p.waterType]||WC.Ocean;
-  const imgs=p.images&&p.images.length>0?p.images:[p.image||"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=500&fit=crop"];
-  const similar=allProperties.filter(op=>op.id!==p.id&&op.waterType===p.waterType).slice(0,3);
-  useEffect(()=>{window.scrollTo({top:0,behavior:"smooth"});setImgIdx(0)},[p.id]);
+cat > app/page.jsx << 'ENDOFPAGEFILE'
+'use client';
 
-  return(<div style={{minHeight:"100vh",background:C.sandLight}}>
-    <div style={{position:"sticky",top:0,zIndex:100,background:"rgba(245,239,230,0.96)",backdropFilter:"blur(12px)",borderBottom:`1px solid ${C.sandDark}`,padding:"10px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-      <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:C.navy,fontFamily:"'DM Sans',sans-serif"}}>{I.back} All Properties</button>
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>toggleFav(p.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",background:isFav?C.redBg:C.white,border:`1.5px solid ${isFav?C.coral+"55":C.g300}`,borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",color:isFav?C.coral:C.g700}}>{I.heart(isFav)} {isFav?"Saved":"Save"}</button>
-        <button onClick={()=>{if(navigator.share)navigator.share({title:p.address,url:window.location.href}).catch(()=>{});else{navigator.clipboard?.writeText(window.location.href);alert("Link copied!")}}} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",background:C.white,border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",color:C.g700}}>{I.share} Share</button>
-      </div>
-    </div>
-    <div style={{maxWidth:1000,margin:"0 auto",padding:"24px 24px 60px"}}>
-      {/* Image gallery */}
-      <div style={{position:"relative",borderRadius:16,overflow:"hidden",height:"clamp(300px,50vw,480px)",background:C.g200,marginBottom:24}}>
-        <img src={imgs[imgIdx]} alt={p.address} style={{width:"100%",height:"100%",objectFit:"cover",transition:"opacity 0.3s"}} onError={e=>{e.target.src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=500&fit=crop"}}/>
-        {imgs.length>1&&<>
-          <button onClick={()=>setImgIdx((imgIdx-1+imgs.length)%imgs.length)} style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.9)",border:"none",borderRadius:"50%",width:40,height:40,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 2px 10px rgba(0,0,0,0.15)"}}>{I.chevL}</button>
-          <button onClick={()=>setImgIdx((imgIdx+1)%imgs.length)} style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.9)",border:"none",borderRadius:"50%",width:40,height:40,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 2px 10px rgba(0,0,0,0.15)"}}>{I.chevR}</button>
-          <div style={{position:"absolute",bottom:14,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6}}>
-            {imgs.map((_,i)=><div key={i} onClick={()=>setImgIdx(i)} style={{width:i===imgIdx?24:8,height:8,borderRadius:4,background:i===imgIdx?"white":"rgba(255,255,255,0.5)",cursor:"pointer",transition:"all 0.3s"}}/>)}
-          </div>
-          <div style={{position:"absolute",top:14,right:14,background:"rgba(0,0,0,0.5)",color:"white",padding:"4px 10px",borderRadius:6,fontSize:12,fontWeight:600}}>{imgIdx+1} / {imgs.length}</div>
-        </>}
-        <div style={{position:"absolute",top:14,left:14,background:wc.bg,color:wc.t,padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:5,letterSpacing:"0.05em",textTransform:"uppercase"}}>{I.water} {p.waterType} Front</div>
-      </div>
-      {/* Price & Address */}
-      <div style={{marginBottom:24}}>
-        <div style={{fontSize:"clamp(28px,4vw,38px)",fontWeight:800,color:C.navy,fontFamily:"'Playfair Display',serif"}}>{fmtP(p.price)}</div>
-        <div style={{fontSize:17,color:C.g700,fontWeight:500,marginTop:4}}>{p.address}</div>
-        <div style={{fontSize:14,color:C.g500,marginTop:2}}>{p.city}{p.city&&", "}{p.state} {p.zipcode||""}</div>
-      </div>
-      {/* Stats */}
-      <div style={{display:"flex",gap:0,marginBottom:28,borderRadius:12,overflow:"hidden",border:`1px solid ${C.g200}`,flexWrap:"wrap"}}>
-        {[{icon:I.bed,val:p.beds,label:"Beds"},{icon:I.bath,val:p.baths,label:"Baths"},{icon:I.area,val:p.sqft?.toLocaleString(),label:"Sq Ft"},{icon:I.anchor,val:`${p.waterFrontage||"—"}`,label:"Frontage"},{icon:I.ruler,val:`${p.lotAcres||"—"}`,label:"Acres"},{icon:I.cal,val:p.yearBuilt||"—",label:"Built"}].filter(s=>s.val&&s.val!=="0"&&s.val!=="—").map((s,i,arr)=>(
-          <div key={i} style={{flex:"1 1 120px",padding:"16px 12px",background:C.white,textAlign:"center",borderRight:i<arr.length-1?`1px solid ${C.g200}`:"none"}}>
-            <div style={{display:"flex",justifyContent:"center",marginBottom:6,color:C.ocean}}>{s.icon}</div>
-            <div style={{fontSize:18,fontWeight:800,color:C.navy,fontFamily:"'Playfair Display',serif"}}>{s.val}</div>
-            <div style={{fontSize:10,color:C.g500,fontWeight:600,marginTop:2}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      {/* Description */}
-      <div style={{background:C.white,borderRadius:14,padding:"24px 28px",border:`1px solid ${C.g200}`,marginBottom:24}}>
-        <h2 style={{fontSize:20,fontWeight:700,color:C.navy,fontFamily:"'Playfair Display',serif",marginBottom:14}}>About This Property</h2>
-        <p style={{fontSize:15,lineHeight:1.8,color:C.g700,whiteSpace:"pre-line"}}>{p.description||"Contact us for more details about this waterfront property."}</p>
-        {p.features&&p.features.length>0&&<div style={{marginTop:20}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.g500,letterSpacing:"0.06em",marginBottom:10}}>FEATURES</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-            {p.features.map((f,i)=><span key={i} style={{padding:"6px 14px",background:C.oceanPale,borderRadius:8,fontSize:13,color:C.ocean,fontWeight:500}}>{f}</span>)}
-          </div>
-        </div>}
-      </div>
-      {/* Waterfront Info */}
-      <div style={{background:`linear-gradient(135deg,${C.navy} 0%,${C.ocean} 100%)`,borderRadius:14,padding:"24px 28px",marginBottom:24,color:C.white}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>{I.anchor}<span style={{fontSize:16,fontWeight:700,fontFamily:"'Playfair Display',serif"}}>Waterfront Details</span></div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
-          <div><div style={{fontSize:11,opacity:0.7,fontWeight:600}}>TYPE</div><div style={{fontSize:18,fontWeight:700,marginTop:2}}>{p.waterType}</div></div>
-          <div><div style={{fontSize:11,opacity:0.7,fontWeight:600}}>FRONTAGE</div><div style={{fontSize:18,fontWeight:700,marginTop:2}}>{p.waterFrontage||"Contact for details"} {p.waterFrontage?"ft":""}</div></div>
-          <div><div style={{fontSize:11,opacity:0.7,fontWeight:600}}>LISTING ID</div><div style={{fontSize:14,fontWeight:600,marginTop:4,opacity:0.8}}>{p.id}</div></div>
-        </div>
-      </div>
-      {/* Ad placeholder */}
-      <div style={{background:C.g100,borderRadius:12,padding:20,marginBottom:28,textAlign:"center",border:`1px dashed ${C.g300}`}}>
-        <div style={{fontSize:11,color:C.g400,fontWeight:600,letterSpacing:"0.08em"}}>ADVERTISEMENT</div>
-      </div>
-      {/* Similar */}
-      {similar.length>0&&<div>
-        <h2 style={{fontSize:20,fontWeight:700,color:C.navy,fontFamily:"'Playfair Display',serif",marginBottom:16}}>Similar {p.waterType}front Properties</h2>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
-          {similar.map(sp=><Card key={sp.id} p={sp} onSelect={onSelect} favs={favs} toggleFav={toggleFav}/>)}
-        </div>
-      </div>}
-    </div>
-  </div>);
-}
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
-// ─── ADMIN PANEL with URL Fetch ───
-function Admin({properties,setProperties,onExit}){
-  const[mode,setMode]=useState("manual"); // "manual" or "url"
-  const[zillowUrl,setZillowUrl]=useState("");
-  const[fetching,setFetching]=useState(false);
-  const[fetchError,setFetchError]=useState("");
-  const[fetchedData,setFetchedData]=useState(null);
-  const[waterType,setWaterType]=useState("");
-  const[waterFrontage,setWaterFrontage]=useState("");
-  const[featured,setFeatured]=useState(false);
-  const fileRef=useRef(null);
+const SAMPLE_PRODUCTS = [
+  {
+    id: 'CL-001', name: 'Malibu Slipcovered Sofa', brand: 'Pottery Barn', price: 1299, salePrice: null, department: 'Furniture',
+    description: 'Relaxed coastal sofa with machine-washable slipcover in natural linen. Deep seats, soft cushions, and a low profile make this the perfect beach house centerpiece.',
+    images: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80','https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=800&q=80'],
+    affiliateUrl: 'https://www.potterybarn.com/products/malibu-sofa/', retailer: 'Pottery Barn', room: 'Living Room', style: 'Hamptons Classic', type: 'Sofas & Sectionals',
+    dimensions: '84"W x 40"D x 33"H', material: 'Linen Slipcover, Kiln-Dried Hardwood Frame', colors: ['Natural Linen','Coastal Blue','Stone'], featured: true, trending: true, new: true, dateAdded: '2026-03-24',
+  },
+  {
+    id: 'CL-002', name: 'Driftwood Round Coffee Table', brand: 'Serena & Lily', price: 898, salePrice: 748, department: 'Furniture',
+    description: 'Hand-carved from sustainably sourced mango wood, this round coffee table brings organic texture and coastal warmth to any living room.',
+    images: ['https://images.unsplash.com/photo-1532372576444-dda954194ad0?w=800&q=80','https://images.unsplash.com/photo-1611486212557-88be5ff027dc?w=800&q=80'],
+    affiliateUrl: 'https://www.serenaandlily.com/', retailer: 'Serena & Lily', room: 'Living Room', style: 'Modern Coastal', type: 'Coffee & Side Tables',
+    dimensions: '42" diameter x 16"H', material: 'Mango Wood, Natural Finish', colors: ['Natural','Whitewash'], featured: true, trending: false, new: true, dateAdded: '2026-03-23',
+  },
+  {
+    id: 'CL-003', name: 'Catalina Rattan Dining Chair', brand: 'West Elm', price: 449, salePrice: null, department: 'Furniture',
+    description: 'Woven natural rattan seat on a solid oak frame. The gentle curves and organic weave bring the relaxed feel of a seaside cafe to your dining room.',
+    images: ['https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=800&q=80','https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=800&q=80'],
+    affiliateUrl: 'https://www.westelm.com/', retailer: 'West Elm', room: 'Dining Room', style: 'Mediterranean Coast', type: 'Dining Tables & Chairs',
+    dimensions: '20"W x 22"D x 34"H', material: 'Natural Rattan, Solid Oak Frame', colors: ['Natural','Black Frame'], featured: false, trending: true, new: false, dateAdded: '2026-03-20',
+  },
+  {
+    id: 'CL-004', name: 'Shoreline Teak Outdoor Sofa', brand: 'Crate & Barrel', price: 1899, salePrice: 1599, department: 'Furniture',
+    description: 'Grade-A teak frame with all-weather Sunbrella cushions in soft cloud white. Built to withstand the elements while looking effortlessly elegant on any patio.',
+    images: ['https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80','https://images.unsplash.com/photo-1615529151169-7b1ff50dc7f2?w=800&q=80'],
+    affiliateUrl: 'https://www.crateandbarrel.com/', retailer: 'Crate & Barrel', room: 'Outdoor / Patio', style: 'Modern Coastal', type: 'Outdoor Seating',
+    dimensions: '78"W x 34"D x 30"H', material: 'Grade-A Teak, Sunbrella Fabric', colors: ['Cloud White','Coastal Stripe','Fog'], featured: true, trending: true, new: false, dateAdded: '2026-03-18',
+  },
+  {
+    id: 'CL-005', name: 'Harbor Cane Four-Poster Bed', brand: 'Serena & Lily', price: 2498, salePrice: null, department: 'Furniture',
+    description: 'A modern take on the four-poster with lightweight cane paneling and a warm whitewash finish. The airy silhouette is perfect for coastal bedrooms.',
+    images: ['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&q=80','https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&q=80'],
+    affiliateUrl: 'https://www.serenaandlily.com/', retailer: 'Serena & Lily', room: 'Bedroom', style: 'Hamptons Classic', type: 'Beds & Headboards',
+    dimensions: 'Queen: 65"W x 87"D x 84"H', material: 'Mahogany, Natural Cane', colors: ['Whitewash','Natural'], featured: true, trending: false, new: true, dateAdded: '2026-03-22',
+  },
+  {
+    id: 'CL-006', name: 'Woven Seagrass Bench', brand: 'Pottery Barn', price: 549, salePrice: 449, department: 'Furniture',
+    description: 'A hand-woven seagrass bench on a solid hardwood frame. Perfect for the end of a bed or a welcoming entryway piece.',
+    images: ['https://images.unsplash.com/photo-1594026112284-02bb6f3352fe?w=800&q=80','https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80'],
+    affiliateUrl: 'https://www.potterybarn.com/', retailer: 'Pottery Barn', room: 'Entryway', style: 'Rustic Beach', type: 'Benches & Ottomans',
+    dimensions: '52"W x 16"D x 18"H', material: 'Seagrass, Solid Mango Wood', colors: ['Natural'], featured: false, trending: true, new: false, dateAdded: '2026-03-15',
+  },
+  {
+    id: 'CL-007', name: 'Pacific Linen Accent Chair', brand: 'West Elm', price: 799, salePrice: null, department: 'Furniture',
+    description: 'Mid-century meets coastal in this linen-upholstered accent chair with solid ash legs in a driftwood finish.',
+    images: ['https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=800&q=80','https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=800&q=80'],
+    affiliateUrl: 'https://www.westelm.com/', retailer: 'West Elm', room: 'Living Room', style: 'Modern Coastal', type: 'Accent Chairs',
+    dimensions: '30"W x 33"D x 32"H', material: 'Linen Blend, Solid Ash', colors: ['Oatmeal','Indigo','Seafoam'], featured: false, trending: false, new: true, dateAdded: '2026-03-21',
+  },
+  {
+    id: 'CL-008', name: 'Tide Reclaimed Wood Dining Table', brand: 'Wayfair', price: 1249, salePrice: null, department: 'Furniture',
+    description: 'A stunning 72-inch dining table crafted from reclaimed pine with a weathered white finish and turned legs. Seats 6-8 comfortably.',
+    images: ['https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&q=80','https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=800&q=80'],
+    affiliateUrl: 'https://www.wayfair.com/', retailer: 'Wayfair', room: 'Dining Room', style: 'Rustic Beach', type: 'Dining Tables & Chairs',
+    dimensions: '72"W x 38"D x 30"H', material: 'Reclaimed Pine', colors: ['Weathered White','Driftwood'], featured: true, trending: false, new: false, dateAdded: '2026-03-10',
+  },
+  {
+    id: 'CL-009', name: 'Laguna Rope Bar Cart', brand: 'Crate & Barrel', price: 599, salePrice: null, department: 'Furniture',
+    description: 'Brass-finished iron frame wrapped in natural rope detail. Two tempered glass shelves provide ample entertaining space.',
+    images: ['https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80','https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80'],
+    affiliateUrl: 'https://www.crateandbarrel.com/', retailer: 'Crate & Barrel', room: 'Living Room', style: 'Nautical', type: 'Bar Carts & Consoles',
+    dimensions: '30"W x 18"D x 33"H', material: 'Iron, Natural Rope, Tempered Glass', colors: ['Brass/Natural'], featured: false, trending: true, new: true, dateAdded: '2026-03-19',
+  },
+  {
+    id: 'CL-010', name: 'Sunset Bamboo Nightstand', brand: 'Target', price: 189, salePrice: 159, department: 'Furniture',
+    description: 'Sustainable bamboo nightstand with a single drawer and open shelf. Clean lines and a light natural finish for a breezy bedroom look.',
+    images: ['https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?w=800&q=80','https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=800&q=80'],
+    affiliateUrl: 'https://www.target.com/', retailer: 'Target', room: 'Bedroom', style: 'Tropical Resort', type: 'Dressers & Nightstands',
+    dimensions: '22"W x 16"D x 24"H', material: 'Sustainable Bamboo', colors: ['Natural','White'], featured: false, trending: false, new: false, dateAdded: '2026-03-12',
+  },
+  {
+    id: 'CL-011', name: 'Oceanview Open Bookshelf', brand: 'Wayfair', price: 679, salePrice: null, department: 'Furniture',
+    description: 'A tall, airy bookshelf in whitewashed oak with five shelves. Perfect for displaying coastal treasures and books.',
+    images: ['https://images.unsplash.com/photo-1594620302200-9a762244a156?w=800&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'],
+    affiliateUrl: 'https://www.wayfair.com/', retailer: 'Wayfair', room: 'Home Office', style: 'Hamptons Classic', type: 'Shelving & Storage',
+    dimensions: '36"W x 14"D x 72"H', material: 'Oak Veneer, Solid Pine Frame', colors: ['Whitewash','Natural Oak'], featured: false, trending: false, new: true, dateAdded: '2026-03-17',
+  },
+  {
+    id: 'CL-012', name: 'Breezy Linen Slipper Chair', brand: 'Serena & Lily', price: 698, salePrice: null, department: 'Furniture',
+    description: 'An armless slipper chair in washed linen. The low profile and soft cushion make it a versatile addition to bedrooms, living rooms, or reading nooks.',
+    images: ['https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80','https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80'],
+    affiliateUrl: 'https://www.serenaandlily.com/', retailer: 'Serena & Lily', room: 'Bedroom', style: 'Mediterranean Coast', type: 'Accent Chairs',
+    dimensions: '26"W x 30"D x 31"H', material: 'Washed Belgian Linen, Birch Frame', colors: ['Fog','Sand','White'], featured: false, trending: false, new: false, dateAdded: '2026-03-14',
+  },
+];
 
-  // Manual entry fields
-  const[mAddr,setMAddr]=useState("");
-  const[mCity,setMCity]=useState("");
-  const[mState,setMState]=useState("");
-  const[mZip,setMZip]=useState("");
-  const[mPrice,setMPrice]=useState("");
-  const[mBeds,setMBeds]=useState("");
-  const[mBaths,setMBaths]=useState("");
-  const[mSqft,setMSqft]=useState("");
-  const[mYear,setMYear]=useState("");
-  const[mDesc,setMDesc]=useState("");
-  const[mImgUrl,setMImgUrl]=useState("");
-  const[mImgs,setMImgs]=useState([]);
+const ROOMS = ['Living Room','Bedroom','Dining Room','Outdoor / Patio','Bathroom','Entryway','Home Office','Kitchen'];
+const STYLES = ['Hamptons Classic','Mediterranean Coast','Tropical Resort','Modern Coastal','Rustic Beach','Nautical'];
+const TYPES = ['Sofas & Sectionals','Accent Chairs','Coffee & Side Tables','Dining Tables & Chairs','Beds & Headboards','Dressers & Nightstands','Outdoor Seating','Benches & Ottomans','Shelving & Storage','Bar Carts & Consoles'];
+const DEPARTMENTS = ['Furniture'];
+const RETAILERS = ['Pottery Barn','Serena & Lily','West Elm','Crate & Barrel','Wayfair','Target','Amazon'];
 
-  const addManualImage=()=>{
-    if(mImgUrl&&mImgUrl.startsWith("http")){setMImgs(prev=>[...prev,mImgUrl]);setMImgUrl("")}
-  };
+const Icons = {
+  search: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>),
+  heart: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>),
+  heartFill: (<svg width="18" height="18" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>),
+  arrow: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>),
+  chevronLeft: (<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>),
+  chevronRight: (<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>),
+  externalLink: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>),
+  filter: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>),
+  x: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
+  plus: (<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>),
+  trash: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>),
+  edit: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>),
+  download: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>),
+  upload: (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>),
+  menu: (<svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>),
+};
 
-  const addManualProperty=()=>{
-    if(!mAddr){setFetchError("Address is required");return}
-    if(!mPrice){setFetchError("Price is required");return}
-    if(!waterType){setFetchError("Select a Water Type");return}
-    const prop={
-      id:`CL-${Date.now()}`,
-      address:mAddr,city:mCity,state:mState,zipcode:mZip,
-      price:Number(mPrice.replace(/[^0-9]/g,""))||0,
-      beds:Number(mBeds)||0,baths:Number(mBaths)||0,sqft:Number(mSqft.replace(/[^0-9]/g,""))||0,
-      yearBuilt:Number(mYear)||0,
-      description:mDesc,
-      images:mImgs.length>0?mImgs:[],
-      image:mImgs[0]||"",
-      features:[],
-      waterType,waterFrontage:Number(waterFrontage)||0,featured,
-      daysOnMarket:1,addedAt:new Date().toISOString(),source:"manual",
-    };
-    setProperties(prev=>[prop,...prev]);
-    setMAddr("");setMCity("");setMState("");setMZip("");setMPrice("");setMBeds("");setMBaths("");
-    setMSqft("");setMYear("");setMDesc("");setMImgUrl("");setMImgs([]);
-    setWaterType("");setWaterFrontage("");setFeatured(false);setFetchError("");
-  };
-
-  const fetchListing=async()=>{
-    if(!zillowUrl.includes("zillow.com/homedetails")){setFetchError("Please paste a Zillow listing URL (must contain /homedetails/)");return}
-    setFetching(true);setFetchError("");setFetchedData(null);
-    try{
-      const res=await fetch("/api/fetch-listing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:zillowUrl})});
-      const data=await res.json();
-      if(data.error){setFetchError(data.error);if(data.partial)setFetchedData(data.partial)}
-      else if(data.property){setFetchedData(data.property);setFetchError("")}
-    }catch(e){setFetchError("Failed to fetch. Make sure the URL is correct and try again.")}
-    setFetching(false);
-  };
-
-  const addProperty=()=>{
-    if(!fetchedData){setFetchError("Fetch a listing first");return}
-    if(!waterType){setFetchError("Please select a Water Type");return}
-    const prop={
-      ...fetchedData,
-      id:`CL-${Date.now()}`,
-      waterType,
-      waterFrontage:Number(waterFrontage)||0,
-      featured,
-      daysOnMarket:1,
-      image:fetchedData.images?.[0]||"",
-    };
-    setProperties(prev=>[prop,...prev]);
-    setZillowUrl("");setFetchedData(null);setWaterType("");setWaterFrontage("");setFeatured(false);setFetchError("");
-  };
-
-  const deleteProp=id=>{if(confirm("Delete this property?"))setProperties(p=>p.filter(x=>x.id!==id))};
-
-  const exportD=()=>{const d=JSON.stringify(properties,null,2);const b=new Blob([d],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="coastlist-properties.json";a.click()};
-  const importD=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d)){setProperties(prev=>[...d,...prev]);alert(`Imported ${d.length} properties!`)}}catch{alert("Invalid JSON")}};r.readAsText(f)};
-
-  return(
-    <div style={{fontFamily:"'DM Sans',sans-serif",background:C.sandLight,minHeight:"100vh"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-      <style>{`*{box-sizing:border-box;margin:0;padding:0}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-
-      <header style={{background:C.navy,padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{fontSize:18,fontWeight:800,color:C.white,fontFamily:"'Playfair Display',serif"}}>CoastList</div>
-          <div style={{background:C.coral+"33",color:C.coral,padding:"3px 9px",borderRadius:5,fontSize:10,fontWeight:700}}>ADMIN</div>
-        </div>
-        <div style={{display:"flex",gap:8}}>
-          <button onClick={exportD} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 12px",background:"transparent",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer"}}>{I.download} Export</button>
-          <button onClick={()=>fileRef.current?.click()} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 12px",background:"transparent",border:"1px solid rgba(255,255,255,0.3)",borderRadius:7,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer"}}>{I.upload} Import</button>
-          <input ref={fileRef} type="file" accept=".json" onChange={importD} style={{display:"none"}}/>
-          <button onClick={onExit} style={{padding:"7px 12px",background:C.seafoam,border:"none",borderRadius:7,color:C.navy,fontSize:12,fontWeight:700,cursor:"pointer"}}>View Live Site</button>
-        </div>
-      </header>
-
-      <div style={{maxWidth:900,margin:"0 auto",padding:24}}>
-        {/* Mode toggle */}
-        <div style={{display:"flex",gap:8,marginBottom:16}}>
-          <button onClick={()=>{setMode("manual");setFetchError("")}} style={{padding:"9px 20px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",border:mode==="manual"?`2px solid ${C.ocean}`:`2px solid ${C.g300}`,background:mode==="manual"?C.ocean:"white",color:mode==="manual"?"white":C.g700}}>{I.plus} Add Property</button>
-          <button onClick={()=>{setMode("url");setFetchError("")}} style={{padding:"9px 20px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",border:mode==="url"?`2px solid ${C.ocean}`:`2px solid ${C.g300}`,background:mode==="url"?C.ocean:"white",color:mode==="url"?"white":C.g700}}>{I.link} Fetch from URL</button>
-        </div>
-
-        {fetchError&&<div style={{padding:"10px 14px",background:C.redBg,borderRadius:8,fontSize:13,color:C.coral,marginBottom:12}}>{fetchError}</div>}
-
-        {/* ─── MANUAL ENTRY MODE ─── */}
-        {mode==="manual"&&(
-          <div style={{background:C.white,borderRadius:14,padding:24,border:`1px solid ${C.g200}`,marginBottom:20}}>
-            <div style={{fontSize:18,fontWeight:700,color:C.navy,marginBottom:4,fontFamily:"'Playfair Display',serif",display:"flex",alignItems:"center",gap:8}}>{I.plus} Add Property</div>
-            <div style={{fontSize:13,color:C.g500,marginBottom:16}}>Enter property details from a Zillow listing. Open the listing in another tab and copy the info.</div>
-
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-              <div style={{gridColumn:"1/3"}}>
-                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Street Address *</label>
-                <input value={mAddr} onChange={e=>setMAddr(e.target.value)} placeholder="123 Ocean Drive" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-              </div>
-              <div>
-                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>City</label>
-                <input value={mCity} onChange={e=>setMCity(e.target.value)} placeholder="Key Largo" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-              </div>
-              <div style={{display:"flex",gap:12}}>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>State</label>
-                  <input value={mState} onChange={e=>setMState(e.target.value)} placeholder="Florida" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-                </div>
-                <div style={{width:100}}>
-                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Zip</label>
-                  <input value={mZip} onChange={e=>setMZip(e.target.value)} placeholder="33037" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-                </div>
-              </div>
-              <div>
-                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Price *</label>
-                <input value={mPrice} onChange={e=>setMPrice(e.target.value)} placeholder="750000" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-              </div>
-              <div style={{display:"flex",gap:12}}>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Beds</label>
-                  <input value={mBeds} onChange={e=>setMBeds(e.target.value)} placeholder="3" type="number" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-                </div>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Baths</label>
-                  <input value={mBaths} onChange={e=>setMBaths(e.target.value)} placeholder="2" type="number" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-                </div>
-              </div>
-              <div>
-                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Sqft</label>
-                <input value={mSqft} onChange={e=>setMSqft(e.target.value)} placeholder="1800" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-              </div>
-              <div>
-                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Year Built</label>
-                <input value={mYear} onChange={e=>setMYear(e.target.value)} placeholder="2005" type="number" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
-              </div>
-              <div style={{gridColumn:"1/3"}}>
-                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Description</label>
-                <textarea value={mDesc} onChange={e=>setMDesc(e.target.value)} placeholder="Copy the listing description from Zillow..." rows={3} style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,fontFamily:"'DM Sans',sans-serif",resize:"vertical"}}/>
-              </div>
-              <div style={{gridColumn:"1/3"}}>
-                <label style={{fontSize:11,fontWeight:700,color:C.g600,marginBottom:4,display:"block"}}>Photo URLs (right-click images on Zillow → Copy image address)</label>
-                <div style={{display:"flex",gap:8}}>
-                  <input value={mImgUrl} onChange={e=>setMImgUrl(e.target.value)} placeholder="https://photos.zillowstatic.com/..." style={{flex:1,padding:"10px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,fontFamily:"'DM Sans',sans-serif"}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addManualImage()}}}/>
-                  <button onClick={addManualImage} style={{padding:"10px 16px",background:C.g200,border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",color:C.g700}}>+ Add</button>
-                </div>
-                {mImgs.length>0&&(
-                  <div style={{display:"flex",gap:4,marginTop:8,overflowX:"auto"}}>
-                    {mImgs.map((img,i)=>(
-                      <div key={i} style={{position:"relative",flexShrink:0}}>
-                        <img src={img} alt="" style={{width:100,height:68,objectFit:"cover",borderRadius:6}} onError={e=>{e.target.style.opacity=0.3}}/>
-                        <button onClick={()=>setMImgs(prev=>prev.filter((_,j)=>j!==i))} style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.6)",color:"white",border:"none",borderRadius:"50%",width:18,height:18,fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Water type + publish */}
-            <div style={{padding:"16px",borderTop:`1px solid ${C.g200}`,background:C.g100,borderRadius:"0 0 12px 12px",margin:"-24px -24px -24px -24px",marginTop:0,padding:20}}>
-              <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:10}}>Classify the waterfront:</div>
-              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                <div style={{display:"flex",gap:6}}>
-                  {WATER_TYPES.map(wt=>(
-                    <button key={wt} onClick={()=>setWaterType(wt)} style={{padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",border:waterType===wt?`2px solid ${WC[wt].bg}`:`2px solid ${C.g300}`,background:waterType===wt?WC[wt].bg:"white",color:waterType===wt?"white":C.g700,transition:"all 0.2s"}}>{wt}</button>
-                  ))}
-                </div>
-                <input type="number" placeholder="Frontage (ft)" value={waterFrontage} onChange={e=>setWaterFrontage(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,width:120,fontFamily:"'DM Sans',sans-serif"}}/>
-                <label style={{display:"flex",alignItems:"center",gap:4,fontSize:13,color:C.g700,cursor:"pointer"}}><input type="checkbox" checked={featured} onChange={e=>setFeatured(e.target.checked)}/> Featured</label>
-                <div style={{flex:1}}/>
-                <button onClick={addManualProperty} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>{I.check} Publish to CoastList</button>
-              </div>
-              {!waterType&&<div style={{fontSize:11,color:C.coral,marginTop:6}}>← Select a water type to publish</div>}
-            </div>
-          </div>
-        )}
-
-        {/* ─── URL FETCH MODE ─── */}
-        {mode==="url"&&(
-          <div style={{background:C.white,borderRadius:14,padding:24,border:`1px solid ${C.g200}`,marginBottom:20}}>
-            <div style={{fontSize:18,fontWeight:700,color:C.navy,marginBottom:4,fontFamily:"'Playfair Display',serif",display:"flex",alignItems:"center",gap:8}}>{I.link} Fetch from Zillow URL</div>
-            <div style={{fontSize:13,color:C.g500,marginBottom:16}}>Paste a Zillow listing URL and we'll try to pull in the details. Note: this may be blocked by Zillow.</div>
-
-            <div style={{display:"flex",gap:10,marginBottom:12}}>
-              <div style={{flex:1,display:"flex",alignItems:"center",gap:8,padding:"11px 14px",background:C.g100,border:`1.5px solid ${C.g300}`,borderRadius:10}}>
-                {I.link}
-                <input value={zillowUrl} onChange={e=>setZillowUrl(e.target.value)} placeholder="https://www.zillow.com/homedetails/123-Main-St..." style={{border:"none",outline:"none",flex:1,fontSize:14,fontFamily:"'DM Sans',sans-serif",background:"transparent",color:C.g800}} onKeyDown={e=>{if(e.key==="Enter")fetchListing()}}/>
-                {zillowUrl&&<button onClick={()=>{setZillowUrl("");setFetchedData(null);setFetchError("")}} style={{background:"none",border:"none",cursor:"pointer",display:"flex",color:C.g500}}>{I.x}</button>}
-              </div>
-              <button onClick={fetchListing} disabled={fetching} style={{display:"flex",alignItems:"center",gap:6,padding:"11px 24px",background:fetching?C.g400:C.ocean,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:fetching?"wait":"pointer",whiteSpace:"nowrap",minWidth:120,justifyContent:"center"}}>
-                {fetching?<><span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>{I.load}</span> Fetching...</>:<>{I.search} Fetch Listing</>}
-              </button>
-            </div>
-
-            {fetchedData&&(
-              <div style={{border:`2px solid ${C.green}44`,borderRadius:12,overflow:"hidden",marginTop:8}}>
-                <div style={{background:C.greenBg,padding:"10px 16px",fontSize:13,fontWeight:700,color:C.green,display:"flex",alignItems:"center",gap:6}}>{I.check} Listing data fetched!</div>
-                {fetchedData.images&&fetchedData.images.length>0&&(
-                  <div style={{display:"flex",gap:4,padding:12,overflowX:"auto",background:C.g100}}>
-                    {fetchedData.images.map((img,i)=><img key={i} src={img} alt="" style={{width:140,height:95,objectFit:"cover",borderRadius:8,flexShrink:0}} onError={e=>{e.target.style.display="none"}}/>)}
-                  </div>
-                )}
-                <div style={{padding:16}}>
-                  <div style={{fontSize:22,fontWeight:800,color:C.navy,fontFamily:"'Playfair Display',serif"}}>{fetchedData.price?fmtP(fetchedData.price):"Price not found"}</div>
-                  <div style={{fontSize:15,color:C.g700,fontWeight:500,marginTop:4}}>{fetchedData.address}</div>
-                  <div style={{fontSize:13,color:C.g500,marginTop:2}}>{fetchedData.city}{fetchedData.city&&fetchedData.state?", ":""}{fetchedData.state} {fetchedData.zipcode||""}</div>
-                  <div style={{display:"flex",gap:16,marginTop:12,fontSize:13,color:C.g600}}>
-                    {fetchedData.beds>0&&<span>{fetchedData.beds} Beds</span>}
-                    {fetchedData.baths>0&&<span>{fetchedData.baths} Baths</span>}
-                    {fetchedData.sqft>0&&<span>{fetchedData.sqft.toLocaleString()} SqFt</span>}
-                  </div>
-                </div>
-                <div style={{padding:"16px",borderTop:`1px solid ${C.g200}`,background:C.g100}}>
-                  <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                    <div style={{display:"flex",gap:6}}>
-                      {WATER_TYPES.map(wt=><button key={wt} onClick={()=>setWaterType(wt)} style={{padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",border:waterType===wt?`2px solid ${WC[wt].bg}`:`2px solid ${C.g300}`,background:waterType===wt?WC[wt].bg:"white",color:waterType===wt?"white":C.g700}}>{wt}</button>)}
-                    </div>
-                    <input type="number" placeholder="Frontage (ft)" value={waterFrontage} onChange={e=>setWaterFrontage(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${C.g300}`,borderRadius:8,fontSize:13,width:120,fontFamily:"'DM Sans',sans-serif"}}/>
-                    <label style={{display:"flex",alignItems:"center",gap:4,fontSize:13,color:C.g700,cursor:"pointer"}}><input type="checkbox" checked={featured} onChange={e=>setFeatured(e.target.checked)}/> Featured</label>
-                    <div style={{flex:1}}/>
-                    <button onClick={addProperty} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>{I.check} Publish</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Properties list */}
-        <div style={{fontSize:16,fontWeight:700,color:C.navy,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Published Properties ({properties.length})</div>
-        {properties.length===0&&<div style={{textAlign:"center",padding:40,color:C.g500,background:C.white,borderRadius:12,border:`1px solid ${C.g200}`}}>No properties yet. Paste a Zillow URL above to add your first listing.</div>}
-        {properties.map(p=>(
-          <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:12,background:C.white,borderRadius:10,border:`1px solid ${C.g200}`,marginBottom:8}}>
-            <img src={(p.images&&p.images[0])||p.image} alt="" style={{width:80,height:55,objectFit:"cover",borderRadius:6,flexShrink:0}} onError={e=>{e.target.src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=200&h=140&fit=crop"}}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:15,fontWeight:700,color:C.navy}}>{fmtP(p.price)}</div>
-              <div style={{fontSize:12,color:C.g600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.address}, {p.city} {p.state}</div>
-              <div style={{fontSize:11,color:C.g500,marginTop:2}}>{p.beds}bd · {p.baths}ba · {p.sqft?.toLocaleString()}sqft · {p.images?.length||0} photos</div>
-            </div>
-            <div style={{padding:"3px 8px",borderRadius:5,fontSize:10,fontWeight:700,background:(WC[p.waterType]||WC.Ocean).bg,color:"#fff",textTransform:"uppercase"}}>{p.waterType}</div>
-            {p.featured&&<span style={{color:C.gold}}>{I.star}</span>}
-            <button onClick={()=>deleteProp(p.id)} style={{background:"none",border:"none",cursor:"pointer",color:C.coral,display:"flex"}}>{I.trash}</button>
-          </div>
-        ))}
+function Logo({ size = 'default' }) {
+  const s = size === 'large' ? { fontSize: '2rem', sub: '0.7rem' } : { fontSize: '1.4rem', sub: '0.55rem' };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+      <svg width={size === 'large' ? 44 : 32} height={size === 'large' ? 44 : 32} viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="23" fill="var(--navy)" stroke="var(--sea-glass)" strokeWidth="2"/>
+        <path d="M6 28 Q 14 20, 24 28 T 42 28" stroke="var(--sea-glass)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+        <path d="M6 32 Q 14 24, 24 32 T 42 32" stroke="rgba(124,197,184,0.4)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        <path d="M24 10 L25.5 16 L22.5 16Z M24 10 L28 15 L26 16.5Z M24 10 L20 15 L22 16.5Z M24 10 L22 17 L26 17Z M24 10 L27 17 L21 17Z" fill="var(--coral)" opacity="0.85"/>
+        <circle cx="24" cy="15" r="1.5" fill="var(--sand-light)"/>
+      </svg>
+      <div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: s.fontSize, fontWeight: 700, color: 'var(--navy)', letterSpacing: '0.08em', lineHeight: 1 }}>COASTLIST</div>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: s.sub, color: 'var(--warm-gray)', letterSpacing: '0.2em', textTransform: 'uppercase', lineHeight: 1.2 }}>Coastal Living</div>
       </div>
     </div>
   );
 }
 
-// ─── Dropdown ───
-function DD({value,options,onChange,placeholder,icon,disabled}){
-  const[open,setOpen]=useState(false);const ref=useRef(null);
-  useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h)},[]);
-  return(<div ref={ref} style={{position:"relative",minWidth:145}}>
-    <button disabled={disabled} onClick={()=>setOpen(!open)} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 12px",background:value?C.oceanPale:C.white,border:`1.5px solid ${value?C.oceanLight:C.g300}`,borderRadius:9,cursor:disabled?"not-allowed":"pointer",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:value?C.navy:C.g600,width:"100%",opacity:disabled?0.5:1,fontWeight:value?600:400}}>
-      {icon&&<span style={{display:"flex",opacity:0.6}}>{icon}</span>}
-      <span style={{flex:1,textAlign:"left",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{value||placeholder}</span>
-      <span style={{display:"flex",transform:open?"rotate(180deg)":"none",transition:"0.2s"}}>{I.chev}</span>
-    </button>
-    {open&&<div style={{position:"absolute",top:"calc(100% + 3px)",left:0,right:0,zIndex:1000,background:C.white,borderRadius:9,border:`1px solid ${C.g200}`,boxShadow:"0 12px 40px rgba(0,0,0,0.12)",maxHeight:240,overflowY:"auto"}}>
-      {value&&<div onClick={()=>{onChange("");setOpen(false)}} style={{padding:"9px 12px",cursor:"pointer",fontSize:12,color:C.coral,borderBottom:`1px solid ${C.g100}`,fontStyle:"italic"}}>Clear</div>}
-      {options.map(o=><div key={o} onClick={()=>{onChange(o);setOpen(false)}} style={{padding:"9px 12px",cursor:"pointer",fontSize:13,background:o===value?C.oceanPale:"transparent",color:o===value?C.ocean:C.g800,fontWeight:o===value?600:400}} onMouseEnter={e=>{if(o!==value)e.target.style.background=C.g100}} onMouseLeave={e=>{if(o!==value)e.target.style.background="transparent"}}>{o}</div>)}
-    </div>}
-  </div>);
-}
+const S = {
+  nav: { position: 'sticky', top: 0, zIndex: 100, background: 'var(--white)', borderBottom: '1px solid var(--driftwood)', boxShadow: '0 1px 8px rgba(27,43,75,0.06)' },
+  navInner: { maxWidth: 1280, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 68 },
+  navLinks: { display: 'flex', gap: 28, alignItems: 'center' },
+  navLink: { fontFamily: 'var(--font-body)', fontSize: '0.92rem', fontWeight: 500, color: 'var(--navy)', cursor: 'pointer', padding: '4px 0', borderBottom: '2px solid transparent', transition: 'all 0.2s' },
+  navLinkActive: { borderBottomColor: 'var(--sea-glass)', color: 'var(--ocean)' },
+  hero: { position: 'relative', background: 'linear-gradient(135deg, var(--navy) 0%, #1a3a5c 50%, var(--ocean) 100%)', minHeight: 520, display: 'flex', alignItems: 'center', overflow: 'hidden' },
+  heroContent: { position: 'relative', zIndex: 2, maxWidth: 1280, margin: '0 auto', padding: '80px 24px', width: '100%' },
+  heroTitle: { fontFamily: 'var(--font-heading)', fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: 700, color: 'var(--white)', marginBottom: 16 },
+  heroSub: { fontFamily: 'var(--font-body)', fontSize: 'clamp(1rem, 2vw, 1.3rem)', color: 'rgba(255,255,255,0.8)', marginBottom: 32, maxWidth: 520, lineHeight: 1.6 },
+  heroCTA: { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 32px', background: 'var(--sea-glass)', color: 'var(--navy)', fontWeight: 600, fontSize: '1rem', borderRadius: 8, cursor: 'pointer', border: 'none', transition: 'all 0.2s' },
+  section: { padding: '64px 0' },
+  sectionAlt: { padding: '64px 0', background: 'var(--sand-light)' },
+  sectionTitle: { fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.5rem, 3vw, 2rem)', color: 'var(--navy)', marginBottom: 8 },
+  sectionSub: { fontFamily: 'var(--font-body)', fontSize: '1rem', color: 'var(--warm-gray)', marginBottom: 32 },
+  card: { background: 'var(--white)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 12px rgba(27,43,75,0.06)', transition: 'transform 0.2s, box-shadow 0.2s', cursor: 'pointer' },
+  cardImg: { width: '100%', height: 260, objectFit: 'cover', transition: 'transform 0.3s' },
+  cardBody: { padding: 16 },
+  cardName: { fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 600, color: 'var(--navy)', marginBottom: 4 },
+  cardBrand: { fontSize: '0.82rem', color: 'var(--warm-gray)', marginBottom: 8 },
+  cardPrice: { fontSize: '1rem', fontWeight: 600, color: 'var(--navy)' },
+  cardSale: { fontSize: '0.85rem', color: 'var(--warm-gray)', textDecoration: 'line-through', marginRight: 8 },
+  cardSalePrice: { fontSize: '1rem', fontWeight: 600, color: 'var(--coral)' },
+  grid3: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 },
+  grid4: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 },
+  btnPrimary: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 28px', background: 'var(--sea-glass)', color: 'var(--navy)', fontWeight: 600, fontSize: '0.95rem', borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.2s' },
+  btnOutline: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 20px', background: 'transparent', color: 'var(--ocean)', fontWeight: 500, fontSize: '0.9rem', borderRadius: 8, border: '1.5px solid var(--ocean)', cursor: 'pointer', transition: 'all 0.2s' },
+  btnDanger: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--coral)', color: 'white', fontWeight: 500, fontSize: '0.85rem', borderRadius: 6, border: 'none', cursor: 'pointer' },
+  btnShop: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px 40px', background: 'var(--sea-glass)', color: 'var(--navy)', fontWeight: 700, fontSize: '1.1rem', borderRadius: 10, border: 'none', cursor: 'pointer', transition: 'all 0.2s', width: '100%' },
+  badge: { display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' },
+  badgeNew: { background: 'var(--sea-glass)', color: 'var(--navy)' },
+  badgeSale: { background: 'var(--coral)', color: 'white' },
+  badgeFeatured: { background: 'var(--ocean)', color: 'white' },
+  sidebar: { width: 260, flexShrink: 0, padding: '0 24px 0 0' },
+  filterGroup: { marginBottom: 24 },
+  filterTitle: { fontFamily: 'var(--font-heading)', fontSize: '0.95rem', fontWeight: 600, color: 'var(--navy)', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid var(--driftwood)' },
+  filterOption: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: '0.88rem', color: 'var(--warm-gray)', cursor: 'pointer', transition: 'color 0.15s' },
+  filterOptionActive: { color: 'var(--ocean)', fontWeight: 600 },
+  footer: { background: 'var(--navy)', color: 'rgba(255,255,255,0.7)', padding: '48px 0 24px' },
+};
 
-// ─── MAIN APP ───
-export default function CoastList(){
-  const[isAdmin,setIsAdmin]=useState(false);
-  const[properties,setProperties]=useState([]);
-  const[selState,setSelState]=useState("");
-  const[selCounty,setSelCounty]=useState("");
-  const[selWater,setSelWater]=useState("");
-  const[search,setSearch]=useState("");
-  const[selProp,setSelProp]=useState(null);
-  const[favs,setFavs]=useState(new Set());
-  const[showHero,setShowHero]=useState(true);
-  const listRef=useRef(null);
-  const STATES=["Florida","California","North Carolina","South Carolina","Massachusetts","Maine","Oregon","Washington","Hawaii","Texas","New Jersey","Connecticut","Virginia","Maryland","Georgia","New York","Rhode Island"];
-  const COUNTIES_BY_STATE_LOCAL={"Florida":["Miami-Dade","Palm Beach","Monroe","Collier","Sarasota","Pinellas","Volusia","St. Johns","Brevard","Lee","Martin","Duval","Bay","Walton"],"California":["Los Angeles","San Diego","Orange","Santa Barbara","Monterey","Marin","San Francisco"],"North Carolina":["New Hanover","Dare","Carteret","Brunswick","Currituck","Onslow"],"South Carolina":["Charleston","Beaufort","Horry","Georgetown"],"Massachusetts":["Barnstable","Nantucket","Dukes","Plymouth","Essex"],"Maine":["Cumberland","York","Hancock","Lincoln","Knox"],"Oregon":["Clatsop","Lincoln","Tillamook","Coos","Curry"],"Washington":["San Juan","Island","Whatcom","Clallam","Pacific"],"Hawaii":["Honolulu","Maui","Hawaii","Kauai"],"Texas":["Galveston","Cameron","Nueces","Aransas","Brazoria"],"New Jersey":["Cape May","Ocean","Monmouth","Atlantic"],"Connecticut":["Fairfield","New London","Middlesex","New Haven"],"Virginia":["Virginia Beach","Accomack","Northampton","Lancaster"],"Maryland":["Worcester","Talbot","Dorchester","Somerset","Anne Arundel"],"Georgia":["Chatham","Glynn","Camden","McIntosh"],"New York":["Suffolk","Nassau","Westchester","Queens"],"Rhode Island":["Washington","Newport","Bristol"]};
-
-  useEffect(()=>{if(typeof window!=="undefined"){
-    if(window.location.search.includes("admin=true"))setIsAdmin(true);
-    const s=localStorage.getItem("coastlist-props-v4");if(s)try{setProperties(JSON.parse(s))}catch{}
-    // Auto-import from URL: ?import_url=<encoded JSON URL>
-    const params=new URLSearchParams(window.location.search);
-    const importUrl=params.get("import_url");
-    if(importUrl){
-      fetch(importUrl).then(r=>r.json()).then(data=>{
-        const newProps=Array.isArray(data)?data:(data.properties||[]);
-        if(newProps.length>0){
-          setProperties(prev=>{
-            const existingIds=new Set(prev.map(p=>p.id));
-            const unique=newProps.filter(p=>!existingIds.has(p.id));
-            if(unique.length>0){
-              const merged=[...unique,...prev];
-              localStorage.setItem("coastlist-props-v4",JSON.stringify(merged));
-              return merged;
-            }
-            return prev;
-          });
-          // Clean URL after import
-          window.history.replaceState({},"",window.location.pathname);
-        }
-      }).catch(e=>console.error("Auto-import failed:",e));
-    }
-    // Auto-import from inline JSON: ?import_json=<encoded JSON>
-    const importJson=params.get("import_json");
-    if(importJson){
-      try{
-        const newProps=JSON.parse(decodeURIComponent(importJson));
-        const arr=Array.isArray(newProps)?newProps:[newProps];
-        setProperties(prev=>{
-          const existingIds=new Set(prev.map(p=>p.id));
-          const unique=arr.filter(p=>!existingIds.has(p.id));
-          if(unique.length>0){
-            const merged=[...unique,...prev];
-            localStorage.setItem("coastlist-props-v4",JSON.stringify(merged));
-            return merged;
-          }
-          return prev;
-        });
-        window.history.replaceState({},"",window.location.pathname);
-      }catch(e){console.error("Inline import failed:",e)}
-    }
-  };},[]);
-  useEffect(()=>{if(typeof window!=="undefined"&&properties.length>0)localStorage.setItem("coastlist-props-v4",JSON.stringify(properties))},[properties]);
-
-  const counties=selState?COUNTIES_BY_STATE_LOCAL[selState]||[]:[];
-  const filtered=useMemo(()=>properties.filter(p=>{
-    if(selState&&p.state!==selState)return false;if(selCounty&&p.county!==selCounty)return false;if(selWater&&p.waterType!==selWater)return false;
-    if(search){const q=search.toLowerCase();return p.address?.toLowerCase().includes(q)||p.city?.toLowerCase().includes(q)||p.state?.toLowerCase().includes(q)||p.county?.toLowerCase().includes(q)}return true;
-  }),[properties,selState,selCounty,selWater,search]);
-
-  const toggleFav=useCallback(id=>{setFavs(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n})},[]);
-  useEffect(()=>{if(!selState||!COUNTIES_BY_STATE_LOCAL[selState]?.includes(selCounty))setSelCounty("")},[selState]);
-  const scrollToList=()=>{setShowHero(false);setTimeout(()=>listRef.current?.scrollIntoView({behavior:"smooth"}),50)};
-
-  if(isAdmin)return<Admin properties={properties} setProperties={setProperties} onExit={()=>setIsAdmin(false)}/>;
-  if(selProp)return<PropertyPage p={selProp} onBack={()=>setSelProp(null)} favs={favs} toggleFav={toggleFav} allProperties={properties} onSelect={setSelProp}/>;
-
-  const af=[selState,selCounty,selWater].filter(Boolean).length;
-  return(
-    <div style={{fontFamily:"'DM Sans',sans-serif",background:C.sandLight,minHeight:"100vh"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-      <style>{`@keyframes waveSlide{from{transform:translateX(0)}to{transform:translateX(-50%)}}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.g300};border-radius:10px}*{box-sizing:border-box;margin:0;padding:0}a{text-decoration:none}`}</style>
-
-      <header style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 24px",background:showHero?"transparent":C.white,borderBottom:showHero?"none":`1px solid ${C.g200}`,position:showHero?"absolute":"sticky",top:0,left:0,right:0,zIndex:1000}}>
-        <div style={{cursor:"pointer"}} onClick={()=>setShowHero(true)}>
-          <span style={{fontSize:20,fontWeight:800,color:showHero?C.white:C.navy,fontFamily:"'Playfair Display',serif"}}>CoastList</span>
+function ProductCard({ product, onClick, onFav, isFav }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div style={{ ...S.card, transform: hover ? 'translateY(-4px)' : 'none', boxShadow: hover ? '0 8px 30px rgba(27,43,75,0.12)' : S.card.boxShadow }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={onClick}>
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <img src={product.images?.[hover && product.images.length > 1 ? 1 : 0] || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80'} alt={product.name} style={{ ...S.cardImg, transform: hover ? 'scale(1.04)' : 'scale(1)' }} />
+        <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6 }}>
+          {product.new && <span style={{ ...S.badge, ...S.badgeNew }}>New</span>}
+          {product.salePrice && <span style={{ ...S.badge, ...S.badgeSale }}>Sale</span>}
+          {product.featured && !product.new && <span style={{ ...S.badge, ...S.badgeFeatured }}>Featured</span>}
         </div>
-        {favs.size>0&&<div style={{display:"flex",alignItems:"center",gap:3,fontSize:12,color:showHero?C.white:C.coral,fontWeight:600}}>{I.heart(true)} {favs.size}</div>}
-      </header>
-
-      {showHero&&<div style={{position:"relative",background:`linear-gradient(145deg,${C.navy} 0%,#1E3A5F 40%,${C.ocean} 100%)`,padding:"80px 40px 100px",overflow:"hidden",textAlign:"center"}}>
-        <div style={{position:"absolute",bottom:0,left:0,right:0,height:180,overflow:"hidden",opacity:0.06,pointerEvents:"none"}}><svg viewBox="0 0 1440 200" style={{position:"absolute",bottom:0,width:"200%",animation:"waveSlide 12s linear infinite"}}><path d="M0,100 C320,180 440,20 720,100 C1000,180 1120,20 1440,100 C1760,180 1880,20 2160,100 L2160,200 L0,200 Z" fill={C.navy}/></svg></div>
-        <div style={{position:"relative",zIndex:1,maxWidth:660,margin:"0 auto"}}>
-          <div style={{fontSize:13,letterSpacing:"0.25em",color:C.seafoam,fontWeight:600,textTransform:"uppercase",marginBottom:14}}>Waterfront Living, Curated</div>
-          <h1 style={{fontSize:"clamp(34px,5vw,52px)",fontWeight:800,color:C.white,lineHeight:1.1,fontFamily:"'Playfair Display',serif",margin:"0 0 18px"}}>Discover Your <span style={{color:C.seafoam}}>Waterfront</span> Dream Home</h1>
-          <p style={{fontSize:"clamp(14px,2vw,17px)",color:"rgba(255,255,255,0.7)",lineHeight:1.6,maxWidth:500,margin:"0 auto 32px"}}>Every property in our collection borders a river, lake, ocean, or waterway.</p>
-          <button onClick={scrollToList} style={{padding:"14px 36px",background:C.seafoam,color:C.navy,border:"none",borderRadius:11,fontSize:15,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:7,boxShadow:"0 4px 20px rgba(124,197,184,0.4)"}}>{I.search} Explore Properties</button>
-        </div>
-      </div>}
-
-      <div ref={listRef} style={{maxWidth:1400,margin:"0 auto",padding:"0 22px 40px"}}>
-        <div style={{position:"sticky",top:showHero?0:58,zIndex:500,background:"rgba(245,239,230,0.95)",backdropFilter:"blur(12px)",padding:"14px 0",marginBottom:18,borderBottom:`1px solid ${C.sandDark}`}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-            <div style={{display:"flex",alignItems:"center",gap:7,padding:"9px 12px",background:C.white,border:`1.5px solid ${C.g300}`,borderRadius:9,flex:"1 1 180px",maxWidth:260}}>
-              {I.search}<input placeholder="Search..." value={search} onChange={e=>setSearch(e.target.value)} style={{border:"none",outline:"none",flex:1,fontSize:13,fontFamily:"'DM Sans',sans-serif",background:"transparent",color:C.g800}}/>
-              {search&&<button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",display:"flex",color:C.g500}}>{I.x}</button>}
-            </div>
-            <DD value={selState} options={STATES} onChange={setSelState} placeholder="All States" icon={I.pin}/>
-            <DD value={selCounty} options={counties} onChange={setSelCounty} placeholder={selState?"All Counties":"State first"} disabled={!selState}/>
-            <div style={{width:1,height:26,background:C.g300,flexShrink:0}}/>
-            <DD value={selWater} options={WATER_TYPES} onChange={setSelWater} placeholder="All Water" icon={I.water}/>
-            <div style={{flex:1}}/>
-            {af>0&&<button onClick={()=>{setSelState("");setSelCounty("");setSelWater("");setSearch("")}} style={{display:"flex",alignItems:"center",gap:3,padding:"7px 12px",background:"#F0908022",border:`1px solid ${C.coral}33`,borderRadius:7,fontSize:11,fontWeight:600,color:C.coral,cursor:"pointer"}}>Clear {af} {I.x}</button>}
-          </div>
-          <div style={{marginTop:8,fontSize:12,color:C.g600}}>
-            <span style={{fontWeight:700,color:C.navy}}>{filtered.length}</span> waterfront {filtered.length===1?"property":"properties"}
-            {selState&&<span> in <strong>{selState}</strong></span>}
-            {selWater&&<span> · <span style={{color:(WC[selWater]||{}).bg,fontWeight:600}}>{selWater}</span></span>}
-          </div>
-        </div>
-
-        {filtered.length===0?(
-          <div style={{textAlign:"center",padding:"60px 20px",color:C.g500}}>
-            <div style={{fontSize:44,marginBottom:10}}>🌊</div>
-            <div style={{fontSize:17,fontWeight:600,color:C.g700,marginBottom:6}}>{properties.length===0?"No properties yet":"No properties found"}</div>
-            <div style={{fontSize:13}}>{properties.length===0?"Visit the admin panel to start adding waterfront listings.":"Try adjusting your filters."}</div>
-          </div>
-        ):(
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:18}}>
-            {filtered.map(p=><Card key={p.id} p={p} onSelect={setSelProp} favs={favs} toggleFav={toggleFav}/>)}
-          </div>
-        )}
+        <button onClick={(e) => { e.stopPropagation(); onFav?.(product.id); }} style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: isFav ? 'var(--coral)' : 'var(--warm-gray)' }}>
+          {isFav ? Icons.heartFill : Icons.heart}
+        </button>
       </div>
-
-      <footer style={{background:C.navy,color:"rgba(255,255,255,0.5)",padding:"32px 24px",textAlign:"center",fontSize:12,lineHeight:1.8}}>
-        <div style={{fontSize:18,fontWeight:800,color:C.white,fontFamily:"'Playfair Display',serif",marginBottom:10,opacity:0.7}}>CoastList</div>
-        <div style={{maxWidth:460,margin:"0 auto 16px"}}>Curating waterfront properties where property lines border rivers, lakes, oceans, and waterways.</div>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.3)"}}>© {new Date().getFullYear()} CoastList.com</div>
-      </footer>
+      <div style={S.cardBody}>
+        <div style={S.cardName}>{product.name}</div>
+        <div style={S.cardBrand}>{product.brand}</div>
+        <div>
+          {product.salePrice ? (<><span style={S.cardSale}>${product.price.toLocaleString()}</span><span style={S.cardSalePrice}>${product.salePrice.toLocaleString()}</span></>) : (<span style={S.cardPrice}>${product.price.toLocaleString()}</span>)}
+        </div>
+        <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 12, background: 'var(--sand)', color: 'var(--warm-gray)' }}>{product.room}</span>
+          <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 12, background: 'var(--sand)', color: 'var(--warm-gray)' }}>{product.style}</span>
+        </div>
+      </div>
     </div>
   );
+}
+
+function ScrollRow({ children }) {
+  const ref = useRef(null);
+  const scroll = (dir) => { ref.current?.scrollBy({ left: dir * 320, behavior: 'smooth' }); };
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => scroll(-1)} style={{ position: 'absolute', left: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 5, background: 'var(--white)', border: '1px solid var(--driftwood)', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>{Icons.chevronLeft}</button>
+      <div ref={ref} style={{ display: 'flex', gap: 20, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>{children}</div>
+      <button onClick={() => scroll(1)} style={{ position: 'absolute', right: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 5, background: 'var(--white)', border: '1px solid var(--driftwood)', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>{Icons.chevronRight}</button>
+    </div>
+  );
+}
+
+export default function CoastListApp() {
+  const [view, setView] = useState('home');
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [favorites, setFavorites] = useState(new Set());
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const [heroTagline, setHeroTagline] = useState(0);
+  const [filterRoom, setFilterRoom] = useState('');
+  const [filterStyle, setFilterStyle] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterBrand, setFilterBrand] = useState('');
+  const [filterPriceRange, setFilterPriceRange] = useState('');
+  const [sortBy, setSortBy] = useState('featured');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [adminTab, setAdminTab] = useState('list');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin') === 'true') { setIsAdmin(true); setView('admin'); }
+    }
+    try {
+      const saved = localStorage.getItem('coastlist_products');
+      if (saved) { const parsed = JSON.parse(saved); if (parsed.length > 0) { setProducts(parsed); return; } }
+    } catch (e) {}
+    setProducts(SAMPLE_PRODUCTS);
+  }, []);
+
+  useEffect(() => {
+    if (products.length > 0) { try { localStorage.setItem('coastlist_products', JSON.stringify(products)); } catch (e) {} }
+  }, [products]);
+
+  const taglines = ['Coastal Living, Curated', 'Your Beach House, Styled', 'Where Sea Meets Home'];
+  useEffect(() => { const t = setInterval(() => setHeroTagline(p => (p + 1) % taglines.length), 5000); return () => clearInterval(t); }, []);
+
+  const toggleFav = useCallback((id) => {
+    setFavorites(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  }, []);
+
+  const openProduct = (p) => { setSelectedProduct(p); setView('detail'); window.scrollTo(0, 0); };
+  const goHome = () => { setView('home'); setSelectedProduct(null); window.scrollTo(0, 0); };
+  const goBrowse = (room, style) => { setFilterRoom(room || ''); setFilterStyle(style || ''); setFilterType(''); setFilterBrand(''); setFilterPriceRange(''); setView('browse'); window.scrollTo(0, 0); };
+
+  const filteredProducts = useMemo(() => {
+    let result = [...products];
+    if (searchQuery) { const q = searchQuery.toLowerCase(); result = result.filter(p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)); }
+    if (filterRoom) result = result.filter(p => p.room === filterRoom);
+    if (filterStyle) result = result.filter(p => p.style === filterStyle);
+    if (filterType) result = result.filter(p => p.type === filterType);
+    if (filterBrand) result = result.filter(p => p.brand === filterBrand);
+    if (filterPriceRange) { const [min, max] = filterPriceRange.split('-').map(Number); result = result.filter(p => { const price = p.salePrice || p.price; return price >= min && (max ? price <= max : true); }); }
+    switch (sortBy) {
+      case 'price-low': result.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price)); break;
+      case 'price-high': result.sort((a, b) => (b.salePrice || b.price) - (a.salePrice || a.price)); break;
+      case 'newest': result.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)); break;
+      default: result.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0)); break;
+    }
+    return result;
+  }, [products, searchQuery, filterRoom, filterStyle, filterType, filterBrand, filterPriceRange, sortBy]);
+
+  const featuredProducts = useMemo(() => products.filter(p => p.featured), [products]);
+  const trendingProducts = useMemo(() => products.filter(p => p.trending), [products]);
+  const roomCounts = useMemo(() => { const c = {}; products.forEach(p => { c[p.room] = (c[p.room] || 0) + 1; }); return c; }, [products]);
+
+  const Nav = () => (
+    <nav style={S.nav}>
+      <div style={S.navInner}>
+        <div onClick={goHome}><Logo /></div>
+        <div style={S.navLinks}>
+          <span onClick={goHome} style={{ ...S.navLink, ...(view === 'home' ? S.navLinkActive : {}) }}>Home</span>
+          <span onClick={() => goBrowse('', '')} style={{ ...S.navLink, ...(view === 'browse' ? S.navLinkActive : {}) }}>Shop Furniture</span>
+          {ROOMS.slice(0, 4).map(r => (<span key={r} onClick={() => goBrowse(r, '')} style={{ ...S.navLink, fontSize: '0.85rem' }}>{r}</span>))}
+          {isAdmin && <span onClick={() => { setView('admin'); window.scrollTo(0, 0); }} style={{ ...S.navLink, color: 'var(--coral)', ...(view === 'admin' ? S.navLinkActive : {}) }}>Admin</span>}
+        </div>
+      </div>
+    </nav>
+  );
+
+  const HomePage = () => (
+    <>
+      <div style={S.hero}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.1 }}>
+          <svg width="100%" height="100%" viewBox="0 0 1440 520" preserveAspectRatio="none"><path d="M0 400 Q 360 320, 720 400 T 1440 400 V520 H0Z" fill="white"/><path d="M0 440 Q 360 380, 720 440 T 1440 440 V520 H0Z" fill="white" opacity="0.5"/></svg>
+        </div>
+        <div style={S.heroContent}>
+          <div style={{ ...S.badge, ...S.badgeNew, marginBottom: 16 }}>Now Curating: Coastal Furniture</div>
+          <h1 style={S.heroTitle} key={heroTagline}>{taglines[heroTagline]}</h1>
+          <p style={S.heroSub}>Handpicked furniture for your life by the water. Discover pieces from Pottery Barn, Serena & Lily, West Elm, and more.</p>
+          <button style={S.heroCTA} onClick={() => goBrowse('', '')}>Explore Collections {Icons.arrow}</button>
+        </div>
+      </div>
+      <div style={S.section}>
+        <div className="container">
+          <h2 style={S.sectionTitle}>Curated Collections</h2>
+          <p style={S.sectionSub}>Handpicked groupings to inspire your next room makeover</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+            {[
+              { label: 'Hamptons Living Room', style: 'Hamptons Classic', room: 'Living Room', img: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&q=80' },
+              { label: 'Modern Coastal Bedroom', style: 'Modern Coastal', room: 'Bedroom', img: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&q=80' },
+              { label: 'Outdoor Coastal Dining', style: '', room: 'Outdoor / Patio', img: 'https://images.unsplash.com/photo-1600566753086-00f18f6b1a04?w=600&q=80' },
+              { label: 'Mediterranean Dining', style: 'Mediterranean Coast', room: 'Dining Room', img: 'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=600&q=80' },
+            ].map(c => (
+              <div key={c.label} onClick={() => goBrowse(c.room, c.style)} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', height: 220, transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+                <img src={c.img} alt={c.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(27,43,75,0.7) 0%, transparent 60%)' }} />
+                <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 600, color: 'white' }}>{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {trendingProducts.length > 0 && (
+        <div style={S.sectionAlt}>
+          <div className="container">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div><h2 style={S.sectionTitle}>Trending Now</h2><p style={{ ...S.sectionSub, marginBottom: 0 }}>The coastal pieces everyone is loving</p></div>
+              <button style={S.btnOutline} onClick={() => goBrowse('', '')}>View All</button>
+            </div>
+            <ScrollRow>
+              {trendingProducts.map(p => (<div key={p.id} style={{ minWidth: 280, scrollSnapAlign: 'start' }}><ProductCard product={p} onClick={() => openProduct(p)} onFav={toggleFav} isFav={favorites.has(p.id)} /></div>))}
+            </ScrollRow>
+          </div>
+        </div>
+      )}
+      <div style={S.section}>
+        <div className="container">
+          <h2 style={S.sectionTitle}>Shop by Room</h2>
+          <p style={S.sectionSub}>Find the perfect pieces for every space</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+            {[
+              { room: 'Living Room', img: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=400&q=80' },
+              { room: 'Bedroom', img: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&q=80' },
+              { room: 'Dining Room', img: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=400&q=80' },
+              { room: 'Outdoor / Patio', img: 'https://images.unsplash.com/photo-1600566753086-00f18f6b1a04?w=400&q=80' },
+              { room: 'Entryway', img: 'https://images.unsplash.com/photo-1594026112284-02bb6f3352fe?w=400&q=80' },
+              { room: 'Home Office', img: 'https://images.unsplash.com/photo-1594620302200-9a762244a156?w=400&q=80' },
+            ].map(r => (
+              <div key={r.room} onClick={() => goBrowse(r.room, '')} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', height: 160 }}>
+                <img src={r.img} alt={r.room} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(27,43,75,0.45)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>{r.room}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{roomCounts[r.room] || 0} pieces</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={S.sectionAlt}>
+        <div className="container">
+          <h2 style={S.sectionTitle}>Find Your Coastal Style</h2>
+          <p style={S.sectionSub}>Which vibe speaks to you?</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {STYLES.map(s => (<button key={s} onClick={() => goBrowse('', s)} style={{ padding: '12px 24px', borderRadius: 30, background: 'var(--white)', border: '1.5px solid var(--driftwood)', color: 'var(--navy)', fontWeight: 500, fontSize: '0.9rem', cursor: 'pointer' }}>{s}</button>))}
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: '64px 0', background: 'var(--navy)', textAlign: 'center' }}>
+        <div className="container">
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', color: 'white', marginBottom: 8 }}>Get Coastal Inspiration Delivered</h2>
+          <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 24 }}>Join our list for weekly picks, new arrivals, and exclusive deals.</p>
+          <div style={{ display: 'flex', gap: 12, maxWidth: 480, margin: '0 auto', justifyContent: 'center' }}>
+            <input type="email" placeholder="Your email address" style={{ flex: 1, padding: '14px 18px', borderRadius: 8, border: 'none' }} />
+            <button style={{ ...S.btnPrimary, whiteSpace: 'nowrap' }}>Subscribe</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const BrowsePage = () => {
+    const clearFilters = () => { setFilterRoom(''); setFilterStyle(''); setFilterType(''); setFilterBrand(''); setFilterPriceRange(''); setSearchQuery(''); };
+    const hasFilters = filterRoom || filterStyle || filterType || filterBrand || filterPriceRange || searchQuery;
+    const priceRanges = [{ label: 'Under $500', value: '0-500' },{ label: '$500 - $1,000', value: '500-1000' },{ label: '$1,000 - $2,000', value: '1000-2000' },{ label: 'Over $2,000', value: '2000-' }];
+
+    const FilterSidebar = ({ mobile }) => (
+      <div style={mobile ? { padding: 20, background: 'var(--white)', borderRadius: 12, marginBottom: 20 } : S.sidebar}>
+        {hasFilters && <button onClick={clearFilters} style={{ ...S.btnOutline, width: '100%', marginBottom: 20, fontSize: '0.82rem' }}>Clear All Filters</button>}
+        <div style={S.filterGroup}>
+          <div style={S.filterTitle}>Room</div>
+          {ROOMS.map(r => (<div key={r} onClick={() => setFilterRoom(filterRoom === r ? '' : r)} style={{ ...S.filterOption, ...(filterRoom === r ? S.filterOptionActive : {}) }}><span style={{ width: 14, height: 14, borderRadius: 3, border: filterRoom === r ? '2px solid var(--ocean)' : '1.5px solid var(--driftwood)', background: filterRoom === r ? 'var(--ocean)' : 'transparent', display: 'inline-block', flexShrink: 0 }} />{r}</div>))}
+        </div>
+        <div style={S.filterGroup}>
+          <div style={S.filterTitle}>Style</div>
+          {STYLES.map(s => (<div key={s} onClick={() => setFilterStyle(filterStyle === s ? '' : s)} style={{ ...S.filterOption, ...(filterStyle === s ? S.filterOptionActive : {}) }}><span style={{ width: 14, height: 14, borderRadius: 3, border: filterStyle === s ? '2px solid var(--ocean)' : '1.5px solid var(--driftwood)', background: filterStyle === s ? 'var(--ocean)' : 'transparent', display: 'inline-block', flexShrink: 0 }} />{s}</div>))}
+        </div>
+        <div style={S.filterGroup}>
+          <div style={S.filterTitle}>Type</div>
+          {TYPES.map(t => (<div key={t} onClick={() => setFilterType(filterType === t ? '' : t)} style={{ ...S.filterOption, ...(filterType === t ? S.filterOptionActive : {}) }}><span style={{ width: 14, height: 14, borderRadius: 3, border: filterType === t ? '2px solid var(--ocean)' : '1.5px solid var(--driftwood)', background: filterType === t ? 'var(--ocean)' : 'transparent', display: 'inline-block', flexShrink: 0 }} />{t}</div>))}
+        </div>
+        <div style={S.filterGroup}>
+          <div style={S.filterTitle}>Price</div>
+          {priceRanges.map(pr => (<div key={pr.value} onClick={() => setFilterPriceRange(filterPriceRange === pr.value ? '' : pr.value)} style={{ ...S.filterOption, ...(filterPriceRange === pr.value ? S.filterOptionActive : {}) }}><span style={{ width: 14, height: 14, borderRadius: 3, border: filterPriceRange === pr.value ? '2px solid var(--ocean)' : '1.5px solid var(--driftwood)', background: filterPriceRange === pr.value ? 'var(--ocean)' : 'transparent', display: 'inline-block', flexShrink: 0 }} />{pr.label}</div>))}
+        </div>
+        <div style={S.filterGroup}>
+          <div style={S.filterTitle}>Brand</div>
+          {RETAILERS.map(b => (<div key={b} onClick={() => setFilterBrand(filterBrand === b ? '' : b)} style={{ ...S.filterOption, ...(filterBrand === b ? S.filterOptionActive : {}) }}><span style={{ width: 14, height: 14, borderRadius: 3, border: filterBrand === b ? '2px solid var(--ocean)' : '1.5px solid var(--driftwood)', background: filterBrand === b ? 'var(--ocean)' : 'transparent', display: 'inline-block', flexShrink: 0 }} />{b}</div>))}
+        </div>
+      </div>
+    );
+
+    return (
+      <div style={{ padding: '32px 0 64px' }}>
+        <div className="container">
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--warm-gray)', marginBottom: 6 }}><span style={{ cursor: 'pointer' }} onClick={goHome}>Home</span> / <span>Furniture</span>{filterRoom && <> / <span>{filterRoom}</span></>}{filterStyle && <> / <span>{filterStyle}</span></>}</div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', color: 'var(--navy)' }}>{filterRoom || filterStyle || filterType || 'All Coastal Furniture'}</h1>
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--warm-gray)' }}>{Icons.search}</span>
+              <input type="text" placeholder="Search furniture..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ width: '100%', paddingLeft: 40, padding: '10px 14px 10px 40px', borderRadius: 8, border: '1.5px solid var(--driftwood)', fontSize: '0.92rem' }} />
+            </div>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--driftwood)', fontSize: '0.9rem', background: 'var(--white)' }}>
+              <option value="featured">Sort: Featured</option><option value="price-low">Price: Low to High</option><option value="price-high">Price: High to Low</option><option value="newest">Newest First</option>
+            </select>
+            <button onClick={() => setShowMobileFilters(!showMobileFilters)} style={{ ...S.btnOutline, padding: '10px 16px' }}>{Icons.filter} Filters</button>
+          </div>
+          {hasFilters && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+              {filterRoom && <span onClick={() => setFilterRoom('')} style={{ ...S.badge, background: 'var(--ocean)', color: 'white', cursor: 'pointer', padding: '4px 12px' }}>{filterRoom} x</span>}
+              {filterStyle && <span onClick={() => setFilterStyle('')} style={{ ...S.badge, background: 'var(--ocean)', color: 'white', cursor: 'pointer', padding: '4px 12px' }}>{filterStyle} x</span>}
+              {filterType && <span onClick={() => setFilterType('')} style={{ ...S.badge, background: 'var(--ocean)', color: 'white', cursor: 'pointer', padding: '4px 12px' }}>{filterType} x</span>}
+              {filterBrand && <span onClick={() => setFilterBrand('')} style={{ ...S.badge, background: 'var(--ocean)', color: 'white', cursor: 'pointer', padding: '4px 12px' }}>{filterBrand} x</span>}
+            </div>
+          )}
+          {showMobileFilters && <FilterSidebar mobile />}
+          <div style={{ display: 'flex', gap: 32 }}>
+            <div><FilterSidebar /></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--warm-gray)', marginBottom: 16 }}>{filteredProducts.length} piece{filteredProducts.length !== 1 ? 's' : ''}</div>
+              {filteredProducts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px' }}><div style={{ fontSize: '1.3rem', color: 'var(--navy)', marginBottom: 8 }}>No pieces found</div><p style={{ color: 'var(--warm-gray)', marginBottom: 20 }}>Try adjusting your filters.</p><button style={S.btnPrimary} onClick={clearFilters}>Clear Filters</button></div>
+              ) : (
+                <div style={S.grid3}>{filteredProducts.map(p => (<ProductCard key={p.id} product={p} onClick={() => openProduct(p)} onFav={toggleFav} isFav={favorites.has(p.id)} />))}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const DetailPage = () => {
+    const p = selectedProduct;
+    const [mainImg, setMainImg] = useState(0);
+    if (!p) return null;
+    const related = products.filter(x => x.id !== p.id && (x.room === p.room || x.style === p.style)).slice(0, 4);
+    return (
+      <div style={{ padding: '32px 0 64px' }}>
+        <div className="container">
+          <div style={{ fontSize: '0.82rem', color: 'var(--warm-gray)', marginBottom: 24 }}>
+            <span style={{ cursor: 'pointer' }} onClick={goHome}>Home</span> / <span style={{ cursor: 'pointer' }} onClick={() => goBrowse('', '')}>Furniture</span> / <span style={{ cursor: 'pointer' }} onClick={() => goBrowse(p.room, '')}>{p.room}</span> / <span style={{ color: 'var(--navy)' }}>{p.name}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'start' }}>
+            <div>
+              <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 12, background: 'var(--sand-light)' }}><img src={p.images?.[mainImg] || p.images?.[0]} alt={p.name} style={{ width: '100%', height: 480, objectFit: 'cover' }} /></div>
+              {p.images?.length > 1 && (<div style={{ display: 'flex', gap: 8 }}>{p.images.map((img, i) => (<div key={i} onClick={() => setMainImg(i)} style={{ borderRadius: 8, overflow: 'hidden', border: mainImg === i ? '2px solid var(--ocean)' : '2px solid transparent', cursor: 'pointer', opacity: mainImg === i ? 1 : 0.6 }}><img src={img} alt="" style={{ width: 80, height: 60, objectFit: 'cover' }} /></div>))}</div>)}
+            </div>
+            <div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>{p.new && <span style={{ ...S.badge, ...S.badgeNew }}>New Arrival</span>}{p.salePrice && <span style={{ ...S.badge, ...S.badgeSale }}>Sale</span>}</div>
+              <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: 'var(--navy)', marginBottom: 8 }}>{p.name}</h1>
+              <div style={{ fontSize: '0.95rem', color: 'var(--warm-gray)', marginBottom: 16 }}>by <strong style={{ color: 'var(--ocean)' }}>{p.brand}</strong></div>
+              <div style={{ marginBottom: 24 }}>
+                {p.salePrice ? (<div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}><span style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--coral)' }}>${p.salePrice.toLocaleString()}</span><span style={{ fontSize: '1.1rem', color: 'var(--warm-gray)', textDecoration: 'line-through' }}>${p.price.toLocaleString()}</span><span style={{ ...S.badge, ...S.badgeSale }}>Save ${(p.price - p.salePrice).toLocaleString()}</span></div>) : (<span style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--navy)' }}>${p.price.toLocaleString()}</span>)}
+              </div>
+              <p style={{ color: 'var(--warm-gray)', lineHeight: 1.7, marginBottom: 24, fontSize: '0.95rem' }}>{p.description}</p>
+              <div style={{ borderTop: '1px solid var(--driftwood)', borderBottom: '1px solid var(--driftwood)', padding: '16px 0', marginBottom: 24 }}>
+                {p.dimensions && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '0.9rem' }}><span style={{ color: 'var(--warm-gray)' }}>Dimensions</span><span style={{ fontWeight: 500 }}>{p.dimensions}</span></div>}
+                {p.material && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '0.9rem' }}><span style={{ color: 'var(--warm-gray)' }}>Material</span><span style={{ fontWeight: 500 }}>{p.material}</span></div>}
+                {p.retailer && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '0.9rem' }}><span style={{ color: 'var(--warm-gray)' }}>Retailer</span><span style={{ fontWeight: 500 }}>{p.retailer}</span></div>}
+              </div>
+              {p.colors?.length > 0 && (<div style={{ marginBottom: 24 }}><div style={{ fontSize: '0.85rem', color: 'var(--warm-gray)', marginBottom: 8 }}>Available Colors</div><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{p.colors.map(c => (<span key={c} style={{ padding: '6px 14px', borderRadius: 20, border: '1.5px solid var(--driftwood)', fontSize: '0.82rem', color: 'var(--navy)' }}>{c}</span>))}</div></div>)}
+              <a href={p.affiliateUrl || '#'} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block', marginBottom: 12 }}><button style={S.btnShop}>Shop This Piece at {p.retailer} {Icons.externalLink}</button></a>
+              <button onClick={() => toggleFav(p.id)} style={{ ...S.btnOutline, width: '100%', color: favorites.has(p.id) ? 'var(--coral)' : 'var(--ocean)', borderColor: favorites.has(p.id) ? 'var(--coral)' : 'var(--ocean)' }}>{favorites.has(p.id) ? Icons.heartFill : Icons.heart} {favorites.has(p.id) ? 'Saved to Favorites' : 'Save to Favorites'}</button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
+                <span style={{ fontSize: '0.78rem', padding: '4px 12px', borderRadius: 16, background: 'var(--sand)', color: 'var(--warm-gray)' }}>{p.department}</span>
+                <span style={{ fontSize: '0.78rem', padding: '4px 12px', borderRadius: 16, background: 'var(--sand)', color: 'var(--warm-gray)' }}>{p.room}</span>
+                <span style={{ fontSize: '0.78rem', padding: '4px 12px', borderRadius: 16, background: 'var(--sand)', color: 'var(--warm-gray)' }}>{p.style}</span>
+                <span style={{ fontSize: '0.78rem', padding: '4px 12px', borderRadius: 16, background: 'var(--sand)', color: 'var(--warm-gray)' }}>{p.type}</span>
+              </div>
+            </div>
+          </div>
+          {related.length > 0 && (<div style={{ marginTop: 64 }}><h2 style={S.sectionTitle}>You Might Also Like</h2><div style={{ ...S.grid4, marginTop: 20 }}>{related.map(r => (<ProductCard key={r.id} product={r} onClick={() => openProduct(r)} onFav={toggleFav} isFav={favorites.has(r.id)} />))}</div></div>)}
+        </div>
+      </div>
+    );
+  };
+
+  const AdminPanel = () => {
+    const emptyProduct = { id: '', name: '', brand: '', price: '', salePrice: '', department: 'Furniture', description: '', images: [''], affiliateUrl: '', retailer: '', room: 'Living Room', style: 'Hamptons Classic', type: 'Sofas & Sectionals', dimensions: '', material: '', colors: [''], featured: false, trending: false, new: true, dateAdded: new Date().toISOString().split('T')[0] };
+    const [form, setForm] = useState(editingProduct || emptyProduct);
+    const [fetchUrl, setFetchUrl] = useState('');
+    const [fetching, setFetching] = useState(false);
+    const [importJson, setImportJson] = useState('');
+    const fileRef = useRef(null);
+
+    useEffect(() => { if (editingProduct) { setForm(editingProduct); setAdminTab('add'); } }, [editingProduct]);
+
+    const handleSave = () => {
+      if (!form.name || !form.price) { alert('Name and price are required'); return; }
+      const product = { ...form, id: form.id || 'CL-' + Date.now().toString(36).toUpperCase(), price: parseFloat(form.price) || 0, salePrice: form.salePrice ? parseFloat(form.salePrice) : null, images: (Array.isArray(form.images) ? form.images : form.images.split('\n')).filter(i => i.trim()), colors: typeof form.colors === 'string' ? form.colors.split(',').map(c => c.trim()).filter(Boolean) : form.colors.filter(c => c.trim()) };
+      if (editingProduct) { setProducts(prev => prev.map(p => p.id === product.id ? product : p)); } else { setProducts(prev => [...prev, product]); }
+      setForm(emptyProduct); setEditingProduct(null); setAdminTab('list');
+    };
+
+    const handleDelete = (id) => { if (confirm('Delete this product?')) { setProducts(prev => prev.filter(p => p.id !== id)); } };
+
+    const handleExport = () => { const blob = new Blob([JSON.stringify(products, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'coastlist-products.json'; a.click(); URL.revokeObjectURL(url); };
+
+    const handleImport = (text) => { try { const data = JSON.parse(text || importJson); if (Array.isArray(data) && data.length > 0) { setProducts(data); setImportJson(''); alert('Imported ' + data.length + ' products'); } else { alert('Invalid JSON'); } } catch (e) { alert('Invalid JSON: ' + e.message); } };
+
+    const handleFileImport = (e) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onload = (ev) => handleImport(ev.target.result); reader.readAsText(file); } };
+
+    const handleFetch = async () => {
+      if (!fetchUrl) return;
+      setFetching(true);
+      try { const res = await fetch('/api/fetch-product?url=' + encodeURIComponent(fetchUrl)); const data = await res.json(); if (data.error) { alert('Fetch failed: ' + data.error); } else { setForm(prev => ({ ...prev, ...data, images: data.images?.length ? data.images : prev.images })); } } catch (e) { alert('Could not fetch product data. Fill in details manually.'); }
+      setFetching(false);
+    };
+
+    return (
+      <div style={{ padding: '32px 0 64px' }}>
+        <div className="container">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+            <div><h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', color: 'var(--navy)' }}>Admin Panel</h1><p style={{ color: 'var(--warm-gray)', fontSize: '0.9rem' }}>{products.length} products</p></div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button style={S.btnOutline} onClick={handleExport}>{Icons.download} Export</button>
+              <input type="file" ref={fileRef} accept=".json" style={{ display: 'none' }} onChange={handleFileImport} />
+              <button style={S.btnOutline} onClick={() => fileRef.current?.click()}>{Icons.upload} Import</button>
+              <button style={S.btnPrimary} onClick={() => { setForm(emptyProduct); setEditingProduct(null); setAdminTab('add'); }}>{Icons.plus} Add Product</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--driftwood)' }}>
+            {['list', 'add', 'import'].map(tab => (<button key={tab} onClick={() => setAdminTab(tab)} style={{ padding: '10px 20px', background: 'none', border: 'none', fontWeight: adminTab === tab ? 600 : 400, color: adminTab === tab ? 'var(--ocean)' : 'var(--warm-gray)', borderBottom: adminTab === tab ? '2px solid var(--ocean)' : '2px solid transparent', marginBottom: -2, cursor: 'pointer', fontSize: '0.92rem', textTransform: 'capitalize' }}>{tab === 'add' && editingProduct ? 'Edit Product' : tab === 'add' ? 'Add Product' : tab}</button>))}
+          </div>
+          {adminTab === 'list' && (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {products.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'var(--white)', borderRadius: 10, padding: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+                  <img src={p.images?.[0] || ''} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} />
+                  <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{p.name}</div><div style={{ fontSize: '0.82rem', color: 'var(--warm-gray)' }}>{p.brand} - ${(p.salePrice || p.price)?.toLocaleString()} - {p.room}</div></div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{p.featured && <span style={{ ...S.badge, ...S.badgeFeatured }}>Featured</span>}{p.trending && <span style={{ ...S.badge, background: 'var(--sea-glass)', color: 'var(--navy)' }}>Trending</span>}{p.new && <span style={{ ...S.badge, ...S.badgeNew }}>New</span>}</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => { setEditingProduct(p); setForm(p); setAdminTab('add'); }} style={{ background: 'var(--sand-light)', border: '1px solid var(--driftwood)', borderRadius: 6, padding: 8, cursor: 'pointer', color: 'var(--ocean)' }}>{Icons.edit}</button>
+                    <button onClick={() => handleDelete(p.id)} style={{ background: 'var(--sand-light)', border: '1px solid var(--driftwood)', borderRadius: 6, padding: 8, cursor: 'pointer', color: 'var(--coral)' }}>{Icons.trash}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {adminTab === 'add' && (
+            <div style={{ maxWidth: 720, background: 'var(--white)', borderRadius: 12, padding: 32, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div style={{ marginBottom: 24, padding: 16, background: 'var(--sand-light)', borderRadius: 8 }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--navy)', marginBottom: 8, display: 'block' }}>Auto-fill from Retailer URL</label>
+                <div style={{ display: 'flex', gap: 8 }}><input value={fetchUrl} onChange={e => setFetchUrl(e.target.value)} placeholder="Paste product URL" style={{ flex: 1 }} /><button onClick={handleFetch} disabled={fetching} style={{ ...S.btnPrimary, opacity: fetching ? 0.6 : 1 }}>{fetching ? 'Fetching...' : 'Fetch'}</button></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Product Name *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={{ width: '100%' }} placeholder="e.g., Malibu Slipcovered Sofa" /></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Brand / Retailer</label><select value={form.retailer} onChange={e => setForm({ ...form, retailer: e.target.value, brand: e.target.value })} style={{ width: '100%' }}><option value="">Select...</option>{RETAILERS.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Department</label><select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} style={{ width: '100%' }}>{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Price *</label><input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} style={{ width: '100%' }} placeholder="1299" /></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Sale Price</label><input type="number" value={form.salePrice || ''} onChange={e => setForm({ ...form, salePrice: e.target.value })} style={{ width: '100%' }} placeholder="999" /></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Room</label><select value={form.room} onChange={e => setForm({ ...form, room: e.target.value })} style={{ width: '100%' }}>{ROOMS.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Style</label><select value={form.style} onChange={e => setForm({ ...form, style: e.target.value })} style={{ width: '100%' }}>{STYLES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Type</label><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={{ width: '100%' }}>{TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Description</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ width: '100%', minHeight: 100, resize: 'vertical' }} /></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Dimensions</label><input value={form.dimensions} onChange={e => setForm({ ...form, dimensions: e.target.value })} style={{ width: '100%' }} /></div>
+                <div><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Material</label><input value={form.material} onChange={e => setForm({ ...form, material: e.target.value })} style={{ width: '100%' }} /></div>
+                <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Colors (comma-separated)</label><input value={Array.isArray(form.colors) ? form.colors.join(', ') : form.colors} onChange={e => setForm({ ...form, colors: e.target.value })} style={{ width: '100%' }} /></div>
+                <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Image URLs (one per line)</label><textarea value={Array.isArray(form.images) ? form.images.join('\n') : form.images} onChange={e => setForm({ ...form, images: e.target.value.split('\n') })} style={{ width: '100%', minHeight: 80, resize: 'vertical' }} /></div>
+                <div style={{ gridColumn: '1 / -1' }}><label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Affiliate URL</label><input value={form.affiliateUrl} onChange={e => setForm({ ...form, affiliateUrl: e.target.value })} style={{ width: '100%' }} /></div>
+              </div>
+              <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
+                {[{ key: 'featured', label: 'Featured' },{ key: 'trending', label: 'Trending' },{ key: 'new', label: 'New Arrival' }].map(t => (<label key={t.key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.9rem' }}><input type="checkbox" checked={form[t.key]} onChange={e => setForm({ ...form, [t.key]: e.target.checked })} />{t.label}</label>))}
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
+                <button style={S.btnPrimary} onClick={handleSave}>{editingProduct ? 'Update Product' : 'Publish Product'}</button>
+                <button style={S.btnOutline} onClick={() => { setForm(emptyProduct); setEditingProduct(null); setAdminTab('list'); }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {adminTab === 'import' && (
+            <div style={{ maxWidth: 720, background: 'var(--white)', borderRadius: 12, padding: 32, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <h3 style={{ fontFamily: 'var(--font-heading)', marginBottom: 16 }}>Import / Export Products</h3>
+              <div style={{ marginBottom: 24 }}><button style={S.btnPrimary} onClick={handleExport}>{Icons.download} Export All as JSON</button></div>
+              <div><label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>Paste JSON to Import</label><textarea value={importJson} onChange={e => setImportJson(e.target.value)} style={{ width: '100%', minHeight: 200, fontFamily: 'monospace', fontSize: '0.82rem' }} /><button style={{ ...S.btnPrimary, marginTop: 12 }} onClick={() => handleImport()}>{Icons.upload} Import Products</button></div>
+              <div style={{ marginTop: 16, padding: 12, background: 'var(--sand)', borderRadius: 8, fontSize: '0.82rem', color: 'var(--warm-gray)' }}>Importing replaces all existing products. Export first to back up.</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const Footer = () => (
+    <footer style={S.footer}>
+      <div className="container">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 40, marginBottom: 40 }}>
+          <div><Logo /><p style={{ marginTop: 16, fontSize: '0.85rem', lineHeight: 1.7 }}>Curated coastal furniture and decor for your life by the water.</p></div>
+          <div><h4 style={{ color: 'white', fontFamily: 'var(--font-heading)', fontSize: '1rem', marginBottom: 14 }}>Shop</h4><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{['Living Room','Bedroom','Dining Room','Outdoor / Patio'].map(r => (<span key={r} onClick={() => goBrowse(r, '')} style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>{r}</span>))}</div></div>
+          <div><h4 style={{ color: 'white', fontFamily: 'var(--font-heading)', fontSize: '1rem', marginBottom: 14 }}>Styles</h4><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{STYLES.map(s => (<span key={s} onClick={() => goBrowse('', s)} style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>{s}</span>))}</div></div>
+          <div><h4 style={{ color: 'white', fontFamily: 'var(--font-heading)', fontSize: '1rem', marginBottom: 14 }}>About</h4><div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>About CoastList</span><span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Contact</span><span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Privacy Policy</span><span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Affiliate Disclosure</span></div></div>
+        </div>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 20, textAlign: 'center', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>&copy; {new Date().getFullYear()} CoastList. All rights reserved. Products are sold by their respective retailers.</div>
+      </div>
+    </footer>
+  );
+
+  return (<><Nav />{view === 'home' && <HomePage />}{view === 'browse' && <BrowsePage />}{view === 'detail' && <DetailPage />}{view === 'admin' && <AdminPanel />}<Footer /></>);
 }

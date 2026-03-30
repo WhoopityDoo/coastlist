@@ -1,26 +1,70 @@
-@import "tailwindcss";
+/* ===== CoastList Design System ===== */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --sand: #F5EFE6;
+  --sand-light: #FAF7F2;
+  --driftwood: #C4B5A4;
+  --navy: #1B2B4B;
+  --ocean: #2E6B8A;
+  --sea-glass: #7CC5B8;
+  --coral: #E87461;
+  --white: #FFFFFF;
+  --warm-gray: #8B8178;
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+  color: var(--navy);
+  background: var(--sand);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; line-height: 1.25; }
+
+a { color: var(--ocean); text-decoration: none; transition: color 0.2s; }
+a:hover { color: var(--navy); }
+
+img { max-width: 100%; display: block; }
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+input, select, textarea {
+  font-family: var(--font-body);
+  border: 1.5px solid var(--driftwood);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  background: var(--white);
+  color: var(--navy);
+  transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--ocean);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(46, 107, 138, 0.12);
+}
+
+::selection { background: rgba(124, 197, 184, 0.3); }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--sand-light); }
+::-webkit-scrollbar-thumb { background: var(--driftwood); border-radius: 4px; }
+
+.container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+@media (max-width: 768px) {
+  .container { padding: 0 16px; }
 }
